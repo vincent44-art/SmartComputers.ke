@@ -1,0 +1,125 @@
+"""Checkout and order endpoints."""
+from __future__ import annotations
+
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
+
+from ..extensions import db
+from ..models import Coupon, Order, OrderItem, Product
+from ..utils.auth import current_user
+from ..utils.errors import NotFoundError, ValidationError
+
+orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
+
+TAX_RATE = 0.16  # Kenya VAT
+FREE_SHIPPING_THRESHOLD = 100_000
+STANDARD_SHIPPING = 500
+
+
+def _compute_totals(items: list[dict], coupon_code: str | None):
+    resolved = []
+    subtotal = 0.0
+    for entry in items:
+        product = Product.query.get(entry.get("productId"))
+        if not product:
+            raise NotFoundError(f"Product {entry.get('productId')} not found")
+        quantity = int(entry.get("quantity") or 1)
+        if quantity < 1:
+            raise ValidationError("Quantity must be at least 1")
+        if product.stock < quantity:
+            raise ValidationError(f"Insufficient stock for {product.name}")
+        subtotal += float(product.price) * quantity
+        resolved.append((product, quantity))
+
+    discount = 0.0
+    coupon = None
+    if coupon_code:
+        coupon = Coupon.query.filter_by(code=coupon_code.strip().upper()).first()
+        if coupon:
+            ok, reason = coupon.is_valid(subtotal)
+            if not ok:
+                raise ValidationError(reason)
+            discount = coupon.compute_discount(subtotal)
+
+    shipping = 0 if subtotal >= FREE_SHIPPING_THRESHOLD else STANDARD_SHIPPING
+    taxable = max(subtotal - discount, 0)
+    tax = round(taxable * TAX_RATE, 2)
+    total = round(taxable + shipping + tax, 2)
+    return resolved, subtotal, discount, shipping, tax, total, coupon
+
+
+@orders_bp.post("")
+@jwt_required(optional=True)
+def create_order():
+    data = request.get_json(silent=True) or {}
+    items = data.get("items") or []
+    if not items:
+        raise ValidationError("Cannot create an order with no items")
+
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise ValidationError("A valid email is required")
+
+    resolved, subtotal, discount, shipping, tax, total, coupon = _compute_totals(
+        items, data.get("couponCode")
+    )
+
+    user = current_user()
+    order = Order(
+        user_id=user.id if user else None,
+        email=email,
+        phone=(data.get("phone") or "").strip() or None,
+        payment_method=data.get("paymentMethod", "mpesa"),
+        subtotal=subtotal,
+        discount=discount,
+        shipping=shipping,
+        tax=tax,
+        total=total,
+        coupon_code=coupon.code if coupon else None,
+        shipping_address=data.get("shippingAddress"),
+        billing_address=data.get("billingAddress") or data.get("shippingAddress"),
+        notes=data.get("notes"),
+    )
+    for product, quantity in resolved:
+        order.items.append(
+            OrderItem(
+                product_id=product.id,
+                product_name=product.name,
+                sku=product.sku,
+                unit_price=product.price,
+                quantity=quantity,
+                thumbnail=product.images[0].url if product.images else None,
+            )
+        )
+        product.stock -= quantity
+
+    if coupon:
+        coupon.used_count += 1
+
+    db.session.add(order)
+    db.session.commit()
+    return jsonify(order.to_dict(detail=True)), 201
+
+
+@orders_bp.get("")
+@jwt_required()
+def list_orders():
+    user = current_user()
+    orders = (
+        Order.query.filter_by(user_id=user.id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    return jsonify([o.to_dict() for o in orders]), 200
+
+
+@orders_bp.get("/<order_number>")
+@jwt_required(optional=True)
+def get_order(order_number: str):
+    order = Order.query.filter_by(order_number=order_number).first()
+    if not order:
+        raise NotFoundError("Order not found")
+    user = current_user()
+    if order.user_id and (not user or user.id != order.user_id):
+        raise NotFoundError("Order not found")
+    return jsonify(order.to_dict(detail=True)), 200
