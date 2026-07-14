@@ -1,0 +1,2 @@
+# SmartComputers.ke
+none
