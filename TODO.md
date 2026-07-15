@@ -1,14 +1,8 @@
 # TODO
 
-## Admin 401 Unauthorized fix
-- [x] Investigated admin backend guard (`admin_required`) and admin role logic (`User.is_admin`).
-- [x] Confirmed seed creates `role="admin"` user.
-- [x] Checked frontend admin pages call `/api/admin/*` endpoints.
-- [x] Verified Axios auth header wiring in `frontend/src/lib/api.ts`.
-- [x] Identified admin layout gating is based on `useAuthStore` role.
-- [x] Add a server-verified auth check in `frontend/src/app/admin/layout.tsx` via `/api/auth/me` and redirect/clear tokens on 401.
-
-
-
+- [ ] Update `backend/app/api/admin.py` to filter out empty image URLs before inserting `ProductImage` rows during product create/update.
+- [ ] Add server-side validation to require at least one non-empty image URL.
+- [ ] Smoke test: save a product from `/admin/products/new` and ensure 201 response.
+- [x] Smoke test code compile: `python3 -m py_compile backend/app/api/admin.py`
 
 

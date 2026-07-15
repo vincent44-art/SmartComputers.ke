@@ -23,8 +23,13 @@ import type { SubmitHandler } from "react-hook-form";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { apiErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-import { createAdminProduct, fetchCategories } from "@/lib/services";
+import {
+  createAdminProduct,
+  fetchCategories,
+  uploadAdminProductImage,
+} from "@/lib/services";
 import type { AdminProductInput } from "@/lib/services";
+
 
 const CONDITIONS = ["new", "refurbished"] as const;
 
@@ -56,11 +61,21 @@ const schema = z.object({
   images: z
     .array(
       z.object({
-        url: z.string().url("Image URL must be a valid URL"),
+        // Allow empty slot; it becomes valid once the user uploads/pastes an image.
+        url: z
+          .string()
+          .optional()
+          .transform((v) => (v ?? "").trim())
+          .refine((v) => v.length === 0 || /^https?:\/\//i.test(v) || v.startsWith("/"), {
+            message: "Image URL must start with http(s) or be a backend-relative URL",
+          })
+          .optional(),
         alt: z.string().optional().nullable(),
       })
     )
-    .min(1, "At least 1 image is required"),
+    .refine((arr) => arr.some((i) => (i.url ?? "").trim().length > 0), {
+      message: "At least 1 image is required",
+    }),
 
   // JSON spec payload
   specs: z
@@ -440,81 +455,137 @@ export default function AddProductPage() {
 
           <Section title="Images & Media" icon={<FiImage className="h-4 w-4 text-primary" />}>
             <div className="space-y-3">
-              <div className="card p-4">
-                <p className="text-sm text-slate-500 dark:text-slate-300">
-                  Backend admin product create expects <span className="font-semibold">image URLs</span>.
-                  Add at least one image URL.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {imagesArray.fields.map((field, idx) => (
-                  <div key={field.id} className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <input
-                      className="input"
-                      placeholder={`Image URL #${idx + 1}`}
-                      {...register(`images.${idx}.url` as const)}
-                    />
-                    <button
-                      type="button"
-                      className="btn-ghost inline-flex items-center gap-2 text-danger"
-                      onClick={() => imagesArray.remove(idx)}
-                      disabled={imagesArray.fields.length <= 1}
-                    >
-                      <FiTrash2 className="h-4 w-4" /> Remove
-                    </button>
-                  </div>
-                ))}
-
-                {errors.images && (
-                  <p className="text-sm text-danger">{String(errors.images.message ?? "Invalid images")}</p>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn-ghost inline-flex items-center gap-2"
-                  onClick={() => imagesArray.append({ url: "", alt: null })}
-                >
-                  <FiPlus className="h-4 w-4" /> Add image
-                </button>
-              </div>
-
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Preview</p>
-                <div className="mt-3 grid grid-cols-3 gap-3">
-                  <AnimatePresence>
-                    {values.images.map((img, idx) => (
-                      <motion.div
-                        key={`${idx}-${img.url}`}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/30"
-                      >
-                        {img.url ? (
-                          <Image
-                            src={img.url}
-                            alt={img.alt ?? "Product image"}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 33vw, 25vw"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">No URL</div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                <div className="card p-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-300">
+                    Backend expects <span className="font-semibold">image URLs</span>.
+                    Use the uploader below to add local images (it uploads and stores the returned URL).
+                  </p>
                 </div>
-                <p className="mt-3 text-xs text-slate-400">
-                  Drag&drop local upload is UI-only here (no backend upload endpoint wired).
-                  Max image size hint: {(MAX_IMAGE_BYTES / (1024 * 1024)).toFixed(0)}MB.
-                </p>
+
+                <div className="space-y-3">
+                    <div className="space-y-3">
+                    {imagesArray.fields.map((field, idx) => (
+                      <div key={field.id} className="space-y-2">
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <input
+                            className="input"
+                            placeholder={`Image URL #${idx + 1} (paste internet URL or leave empty)`}
+                            {...register(`images.${idx}.url` as const)}
+                          />
+                          <button
+                            type="button"
+                            className="btn-ghost inline-flex items-center gap-2 text-danger"
+                            onClick={() => imagesArray.remove(idx)}
+                            disabled={imagesArray.fields.length <= 1}
+                          >
+                            <FiTrash2 className="h-4 w-4" /> Remove
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Supports remote images (http/https). Saved as-is.
+                        </p>
+                      </div>
+                    ))}
+
+                    {errors.images && (
+                      <p className="text-sm text-danger">{String(errors.images.message ?? "Invalid images")}</p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn-ghost inline-flex items-center gap-2"
+                        onClick={() => imagesArray.append({ url: "", alt: null })}
+                      >
+                        <FiPlus className="h-4 w-4" /> Add image
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2">
+                    <div className="grid gap-3 md:grid-cols-[1fr_260px]">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Upload from computer
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">
+                          Choose a file; the returned URL will be saved into the first empty image slot.
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Max image size hint: {(MAX_IMAGE_BYTES / (1024 * 1024)).toFixed(0)}MB.
+                        </p>
+                      </div>
+
+                      <input
+                        className="input"
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          const current = form.getValues();
+                          const emptyIndex = current.images.findIndex((i) => !i.url);
+                          const indexToSet = emptyIndex >= 0 ? emptyIndex : current.images.length;
+
+                          if (indexToSet >= current.images.length) {
+                            imagesArray.append({ url: "", alt: null });
+                          }
+
+                          setServerError("");
+                          try {
+                            const uploaded = await uploadAdminProductImage(file);
+                            form.setValue(`images.${indexToSet}.url` as const, uploaded.url, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                          } catch (err: any) {
+                            setServerError(String(err?.message ?? "Upload failed"));
+                          } finally {
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {serverError && (
+                      <div className="card border border-danger/30 bg-danger/5 p-3 mt-3 text-sm text-danger">
+                        {serverError}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Preview</p>
+                    <div className="mt-3 grid grid-cols-3 gap-3">
+                      <AnimatePresence>
+                        {values.images.map((img, idx) => (
+                          <motion.div
+                            key={`${idx}-${img.url}`}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 8 }}
+                            className="relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/30"
+                          >
+                            {img.url ? (
+                              <Image
+                                src={img.url}
+                                alt={img.alt ?? "Product image"}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 768px) 33vw, 25vw"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">No URL</div>
+                            )}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
           </Section>
 
           <Section title="Specifications" icon={<span className="badge bg-primary/10 text-primary">6</span>}>
@@ -602,10 +673,11 @@ export default function AddProductPage() {
                   <p>
                     <span className="font-medium">Storage:</span> {values.storage || "—"}
                   </p>
-                </div>
-              </div>
+                    </div>
 
-              <div className="flex flex-wrap gap-2">
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
                 <span className="badge bg-slate-100 text-secondary dark:bg-slate-800">
                   {values.condition.toUpperCase()}
                 </span>

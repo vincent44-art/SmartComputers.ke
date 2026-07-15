@@ -1,5 +1,6 @@
-import { api } from "./api";
+import { api, getStoredToken } from "./api";
 import type {
+
   AdminAnalytics,
   AuthResponse,
   BlogCategory,
@@ -258,6 +259,35 @@ export async function createAdminProduct(
   const { data } = await api.post<Product>("/api/admin/products", payload);
   return data;
 }
+
+export async function uploadAdminProductImage(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const token = getStoredToken();
+
+  // use fetch instead of axios default JSON instance
+  const res = await fetch("/api/admin/uploads/image", {
+    method: "POST",
+    body: form,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+
+  if (!res.ok) {
+    let msg = "Upload failed";
+    try {
+      const data = await res.json();
+      msg = data?.message || data?.error || msg;
+    } catch {
+      // ignore
+    }
+    throw new Error(msg);
+  }
+
+  return (await res.json()) as { url: string };
+}
+
 
 export async function updateAdminProduct(
   id: number,

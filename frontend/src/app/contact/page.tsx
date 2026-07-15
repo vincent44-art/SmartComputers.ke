@@ -107,6 +107,26 @@ export default function ContactPage() {
             </form>
           )}
         </div>
+
+        <div className="card p-6 lg:col-span-2">
+          <h2 className="text-lg font-bold text-secondary dark:text-white">
+            Shop location
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Rahimtulla Trust Building, Nairobi, Kenya.
+          </p>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d641.9272748224215!2d36.81895387755239!3d-1.2778891003080493!2m3!1f0!2f0!3f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d455bedc39%3A0xc82ecc0d6a95e269!2sRahimtulla%20Trust%20Building!5e0!3m2!1sen!2ske!4v1784138539327!5m2!1sen!2ske"
+              width="100%"
+              height="450"
+              style={{ border: 0 }}
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -8,6 +8,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
+from werkzeug.utils import secure_filename
+import os
+import uuid
+from flask import send_from_directory
 from sqlalchemy import func
 
 from ..extensions import db
@@ -26,6 +30,56 @@ from ..utils.pagination import paginate
 from ..utils.slug import slugify
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+
+
+@admin_bp.post("/uploads/image")
+@admin_required
+
+def upload_image():
+    """Upload a product image and return a public URL.
+
+    Expects multipart/form-data with field name `file`.
+    """
+
+    if "file" not in request.files:
+        raise ValidationError("Missing file")
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        raise ValidationError("Invalid file")
+
+    filename = secure_filename(file.filename)
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+        raise ValidationError("Unsupported image type")
+
+    upload_dir = os.path.join(os.path.dirname(__file__), "..", "..", "instance", "uploads", "images")
+    upload_dir = os.path.abspath(upload_dir)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    new_name = f"{uuid.uuid4().hex}{ext}"
+    save_path = os.path.join(upload_dir, new_name)
+    file.save(save_path)
+
+    # Serve uploaded files directly from the backend (so nginx/Next don't need any static config).
+    # We expose it under /api/admin/uploads/images/<filename>.
+    return jsonify({"url": f"/api/admin/uploads/images/{new_name}"}), 201
+
+
+@admin_bp.get("/uploads/images/<path:filename>")
+def serve_uploaded_image(filename: str):
+
+    upload_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "instance", "uploads", "images")
+    )
+    return send_from_directory(upload_dir, filename)
+
+
+
+
+
+
 
 
 @admin_bp.get("/analytics")
@@ -96,9 +150,12 @@ def admin_list_products():
 
 
 def _apply_product_payload(product: Product, data: dict) -> None:
+    # Important: do NOT blindly overwrite slug from `name`.
+    # - On create, admin_create_product() already generates a unique slug.
+    # - Overwriting here would reintroduce UNIQUE constraint failures.
     if "name" in data:
         product.name = data["name"]
-        product.slug = slugify(data["name"])
+
     for field in (
         "shortDescription",
         "description",
@@ -146,20 +203,69 @@ def admin_create_product():
     if not data.get("categoryId"):
         raise ValidationError("A category is required")
 
+    # Server-side safety: frontend allows empty image slots (""), but ProductImage.url is NOT NULL.
+    raw_images = data.get("images", [])
+    if not isinstance(raw_images, list):
+        raise ValidationError("Images must be a list")
+
+    images = [str(u).strip() for u in raw_images if u is not None and str(u).strip()]
+    if not images:
+        raise ValidationError("At least 1 image is required")
+
     count = db.session.query(func.count(Product.id)).scalar()
-    product = Product(
-        name=data["name"],
-        slug=slugify(data["name"]),
-        sku=data.get("sku") or f"SC-{2000 + count}",
-        price=data["price"],
-        category_id=data["categoryId"],
-    )
+    base_slug = slugify(data["name"])
+
+    # Ensure slug uniqueness (the DB has a UNIQUE constraint on products.slug).
+    # If the slug already exists, append a numeric suffix.
+    slug = base_slug
+    suffix = 1
+    while Product.query.filter_by(slug=slug).first() is not None:
+        suffix += 1
+        slug = f"{base_slug}-{suffix}"
+
+    # If slug is still colliding (e.g. race condition), retry with a suffix.
+    sku = data.get("sku")
+    if not sku:
+        sku = f"SC-{2000 + count}"
+
+    max_attempts = 5
+    attempt = 0
+
+    # Create the product and retry if the slug collides.
+    # (We retry on DB uniqueness failure because there can be races.)
+    while True:
+        try:
+            product = Product(
+                name=data["name"],
+                slug=slug,
+                sku=sku,
+                price=data["price"],
+                category_id=data["categoryId"],
+            )
+            db.session.add(product)
+            db.session.flush()  # force INSERT so we can catch IntegrityError
+            break
+        except Exception as e:
+            # Only handle slug collisions; anything else should be raised.
+            msg = str(e).lower()
+            if "unique constraint failed" in msg and "products.slug" in msg:
+                attempt += 1
+                if attempt >= max_attempts:
+                    raise
+                suffix += 1
+                slug = f"{base_slug}-{suffix}"
+                continue
+            raise
+
+
     _apply_product_payload(product, data)
-    for i, url in enumerate(data.get("images", [])):
+
+    for i, url in enumerate(images):
         product.images.append(ProductImage(url=url, alt=data["name"], position=i))
     db.session.add(product)
     db.session.commit()
     return jsonify(product.to_dict(detail=True)), 201
+
 
 
 @admin_bp.patch("/products/<int:product_id>")
@@ -171,11 +277,22 @@ def admin_update_product(product_id: int):
     data = request.get_json(silent=True) or {}
     _apply_product_payload(product, data)
     if "images" in data:
+        raw_images = data.get("images", [])
+        if not isinstance(raw_images, list):
+            raise ValidationError("Images must be a list")
+
+        images = [str(u).strip() for u in raw_images if u is not None and str(u).strip()]
+        if not images:
+            raise ValidationError("At least 1 image is required")
+
         product.images.clear()
-        for i, url in enumerate(data["images"]):
-            product.images.append(ProductImage(url=url, alt=product.name, position=i))
+        for i, url in enumerate(images):
+            product.images.append(
+                ProductImage(url=url, alt=product.name, position=i)
+            )
     db.session.commit()
     return jsonify(product.to_dict(detail=True)), 200
+
 
 
 @admin_bp.delete("/products/<int:product_id>")
