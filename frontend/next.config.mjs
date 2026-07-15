@@ -7,8 +7,11 @@ const nextConfig = {
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
+      // Allow Cloudinary/other image hosts used by uploaded product media.
+      { protocol: "https", hostname: "share.google" },
     ],
   },
+
   async rewrites() {
     const api = process.env.API_PROXY_TARGET || "http://localhost:5000";
     return [{ source: "/api/:path*", destination: `${api}/api/:path*` }];

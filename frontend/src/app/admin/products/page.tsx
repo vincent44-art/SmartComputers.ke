@@ -1,8 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
 import { FiEdit2, FiPlus, FiTrash2 } from "react-icons/fi";
+
 
 import { Skeleton } from "@/components/ui/Skeleton";
 import { apiErrorMessage } from "@/lib/api";
@@ -98,10 +100,13 @@ export default function AdminProductsPage() {
         <h1 className="text-2xl font-bold text-secondary dark:text-white">
           Products
         </h1>
-        <button onClick={openCreate} className="btn-primary">
+        <Link href="/admin/products/new" className="btn-primary">
           <FiPlus className="h-4 w-4" /> Add product
-        </button>
+        </Link>
+
       </div>
+
+      {/* Inline modal editor kept for backward compatibility, but the primary “Add product” entrypoint now routes to /admin/products/new */}
 
       <input
         className="input mt-4 max-w-sm"

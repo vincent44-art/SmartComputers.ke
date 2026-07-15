@@ -169,16 +169,26 @@ export function Navbar() {
               </span>
             )}
           </button>
-          <Link
-            href={user ? "/account" : "/login"}
-            className="btn-ghost h-10 rounded-full px-3"
-            aria-label="Account"
-          >
-            <FiUser className="h-5 w-5" />
-            <span className="hidden text-sm font-medium lg:inline">
-              {user ? user.firstName || "Account" : "Login"}
-            </span>
-          </Link>
+          {user?.role === "admin" ? (
+            <Link
+              href="/admin"
+              className="btn-primary rounded-full px-3 py-2"
+              aria-label="Admin Dashboard"
+            >
+              Admin Dashboard
+            </Link>
+          ) : (
+            <Link
+              href={user ? "/account" : "/login"}
+              className="btn-ghost h-10 rounded-full px-3"
+              aria-label="Account"
+            >
+              <FiUser className="h-5 w-5" />
+              <span className="hidden text-sm font-medium lg:inline">
+                {user ? user.firstName || "Account" : "Login"}
+              </span>
+            </Link>
+          )}
         </div>
       </div>
 

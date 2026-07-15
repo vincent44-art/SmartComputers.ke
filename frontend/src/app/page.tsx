@@ -32,12 +32,14 @@ export default async function HomePage() {
 
   const brands: Brand[] = Array.from(
     new Map(
-      latest.items
+      // Take a larger set by combining multiple product queries.
+      [...latest.items, ...featured.items, ...bestSellers.items]
         .map((p: Product) => p.brand)
         .filter((b): b is Brand => Boolean(b))
         .map((b) => [b.id, b])
     ).values()
   );
+
 
   return (
     <>
@@ -81,9 +83,11 @@ export default async function HomePage() {
       {brands.length > 0 && (
         <section className="container-page py-8">
           <SectionHeader title="Featured brands" />
+          {/* Shows more brands and moves them right-to-left under the banner */}
           <BrandStrip brands={brands} />
         </section>
       )}
+
 
       <RecentlyViewed />
 

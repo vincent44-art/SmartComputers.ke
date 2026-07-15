@@ -14,7 +14,10 @@ import {
 } from "react-icons/fi";
 
 import { cn } from "@/lib/format";
+import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/useAuthStore";
+
+
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: FiGrid },
@@ -30,10 +33,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, hydrated, logout } = useAuthStore();
 
   useEffect(() => {
-    if (hydrated && (!user || user.role !== "admin")) {
-      router.replace("/login");
-    }
-  }, [hydrated, user, router]);
+    if (!hydrated) return;
+
+    const verify = async () => {
+      try {
+        // Server-verified check to ensure Authorization header is accepted.
+        await api.get("/api/auth/me");
+      } catch (err) {
+        try {
+          localStorage.removeItem("sc_access_token");
+          localStorage.removeItem("sc_session_id");
+        } catch {
+          // ignore
+        }
+        logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (!user || user.role !== "admin") {
+        router.replace("/login");
+      }
+    };
+
+    void verify();
+  }, [hydrated, user, router, logout]);
+
 
   if (!hydrated || !user || user.role !== "admin") {
     return (

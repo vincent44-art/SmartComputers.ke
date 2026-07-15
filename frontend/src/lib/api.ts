@@ -27,7 +27,17 @@ export function setStoredToken(token: string | null): void {
   if (typeof window === "undefined") return;
   if (token) window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
   else window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+  // Ensure any in-flight Axios requests after login/logout pick up the new token.
+  // (Axios request interceptor reads from localStorage at request time, but this
+  // helps prevent edge cases with cached interceptor config.)
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
 }
+
 
 export function getGuestSessionId(): string {
   if (typeof window === "undefined") return "server";
