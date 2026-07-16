@@ -8,6 +8,8 @@ import { FaPaypal } from "react-icons/fa6";
 
 import { apiErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
+
 import {
   createOrder,
   initiatePayment,
@@ -234,9 +236,39 @@ export default function CheckoutPage() {
 
           {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
-          <button type="submit" disabled={placing} className="btn-primary mt-6 w-full">
+          <button
+            type="button"
+            disabled={placing}
+            className="btn-outline mt-6 w-full"
+            onClick={() => {
+              const itemsText = cart.items
+                .map((i) => `• ${i.product?.name} x${i.quantity}`)
+                .join("\n");
+
+              const lines = [
+                "Hello Smart Computers 👋",
+                "I would like to place an order via WhatsApp:",
+                itemsText,
+                "",
+                `Shipping to: ${form.recipient} — ${form.line1}, ${form.city}${form.county ? `, ${form.county}` : ""}`,
+                `Phone: ${form.phone || "N/A"}`,
+                "",
+                `Total: ${formatWhatsAppMoney(total)}`,
+                "",
+                "Please confirm availability and proceed.",
+              ];
+
+              const url = buildWhatsAppUrl(lines.join("\n"), WHATSAPP_NUMBER_E164);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }}
+          >
+            Order via WhatsApp
+          </button>
+
+          <button type="submit" disabled={placing} className="btn-primary mt-3 w-full">
             {placing ? "Placing order…" : `Pay ${formatCurrency(total)}`}
           </button>
+
         </aside>
       </div>
     </form>

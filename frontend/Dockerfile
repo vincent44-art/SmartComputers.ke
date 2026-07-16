@@ -12,6 +12,12 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Fail fast if Next standalone output is missing/mis-shaped.
+RUN test -f "/app/.next/standalone/server.js" \
+  && test -d "/app/.next/static" \
+  && echo "✅ Standalone server.js present" \
+  && echo "✅ .next/static present"
+
 # ---- runner ----
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -25,7 +31,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Fail fast at runtime layout too.
+RUN test -f "/app/server.js" \
+  && test -d "/app/.next/static" \
+  && echo "✅ Runtime server.js present" \
+  && echo "✅ Runtime .next/static present"
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
+

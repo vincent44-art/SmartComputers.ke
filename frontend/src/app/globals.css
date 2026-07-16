@@ -1,6 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
 
 :root {
   --background: #f8fafc;
@@ -33,32 +34,36 @@
   }
 
   .glass {
-    @apply border border-white/40 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/60;
+    @apply border border-white/55 bg-white/60 backdrop-blur-xl shadow-soft dark:border-white/10 dark:bg-slate-900/55;
   }
+
 
   .card {
     @apply rounded-2xl border border-slate-200/70 bg-white shadow-soft transition dark:border-slate-800 dark:bg-slate-900;
   }
 
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-950;
   }
   .btn-primary {
-    @apply btn bg-primary text-white shadow-glow hover:bg-primary-700 active:scale-[0.98];
+    @apply btn bg-primary text-white hover:bg-primary-700 active:scale-[0.98] shadow-glow;
   }
   .btn-secondary {
     @apply btn bg-secondary text-white hover:bg-slate-800 active:scale-[0.98];
   }
   .btn-ghost {
-    @apply btn bg-slate-100 text-secondary hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700;
+    @apply btn bg-white/60 text-secondary hover:bg-white/90 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10;
   }
   .btn-outline {
-    @apply btn border border-slate-300 bg-transparent text-secondary hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-100;
+    @apply btn border border-slate-300/90 bg-transparent text-secondary hover:border-primary hover:text-primary dark:border-slate-700/70 dark:text-slate-100;
   }
 
+
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-secondary shadow-sm outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply w-full rounded-xl border border-slate-300/90 bg-white px-4 py-2.5 text-sm text-secondary shadow-sm outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
   }
+
 
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;

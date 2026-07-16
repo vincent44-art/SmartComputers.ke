@@ -99,17 +99,17 @@ export function Navbar() {
             <AnimatePresence>
               {megaOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.18 }}
-                  className="glass absolute left-0 top-full mt-2 grid w-[560px] grid-cols-2 gap-1 rounded-2xl p-3 text-left shadow-soft-lg"
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="glass absolute left-0 top-full mt-3 grid w-[560px] grid-cols-2 gap-1 rounded-2xl p-3 text-left shadow-soft-lg"
                 >
                   {categories.map((c) => (
                     <Link
                       key={c.id}
                       href={`/category/${c.slug}`}
-                      className="rounded-xl px-3 py-2.5 text-sm font-medium text-secondary transition hover:bg-primary/10 hover:text-primary dark:text-slate-200"
+                    className="rounded-xl px-3 py-2.5 text-sm font-medium text-secondary transition hover:bg-primary/12 hover:text-primary hover:shadow-glow/0 dark:text-slate-200"
                     >
                       {c.name}
                     </Link>

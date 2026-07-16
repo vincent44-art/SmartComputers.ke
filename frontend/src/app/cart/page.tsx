@@ -5,7 +5,9 @@ import Link from "next/link";
 import { FiMinus, FiPlus, FiShoppingBag, FiTrash2 } from "react-icons/fi";
 
 import { formatCurrency } from "@/lib/format";
+import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 import { useCartStore } from "@/store/useCartStore";
+
 
 export default function CartPage() {
   const { cart, update, remove } = useCartStore();
@@ -126,12 +128,39 @@ export default function CartPage() {
               <dd className="font-bold text-primary">{formatCurrency(total)}</dd>
             </div>
           </dl>
-          <Link href="/checkout" className="btn-primary mt-6 w-full">
+          <button
+            type="button"
+            onClick={() => {
+              const itemsText = cart.items
+                .map((i) => `• ${i.product?.name} x${i.quantity}`)
+                .join("\n");
+
+              const lines = [
+                "Hello Smart Computers 👋",
+                "I would like to order the following items:",
+                itemsText,
+                "",
+                `Total: ${formatWhatsAppMoney(total)}`,
+                "",
+                "Please confirm availability and delivery details.",
+              ];
+
+              const url = buildWhatsAppUrl(lines.join("\n"), WHATSAPP_NUMBER_E164);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }}
+            className="btn-outline mt-6 w-full"
+          >
+            Order via WhatsApp
+          </button>
+
+          <Link href="/checkout" className="btn-primary mt-3 w-full">
             Proceed to checkout
           </Link>
+
           <Link href="/" className="btn-ghost mt-3 w-full">
             Continue shopping
           </Link>
+
         </div>
       </div>
     </div>

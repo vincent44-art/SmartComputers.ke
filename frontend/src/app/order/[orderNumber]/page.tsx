@@ -7,6 +7,8 @@ import { FiCheckCircle } from "react-icons/fi";
 
 import { formatCurrency } from "@/lib/format";
 import { fetchOrder } from "@/lib/services";
+import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
+
 
 export default function OrderConfirmationPage({
   params,
@@ -95,14 +97,39 @@ export default function OrderConfirmationPage({
           </p>
         </div>
 
-        <div className="mt-6 flex justify-center gap-3">
-          <Link href="/" className="btn-outline">
-            Continue shopping
-          </Link>
-          <Link href="/account" className="btn-primary">
-            View my orders
-          </Link>
+        <div className="mt-6 flex flex-col items-stretch gap-3">
+          <button
+            type="button"
+            className="btn-outline w-full"
+            onClick={() => {
+              const lines = [
+                "Hello Smart Computers 👋",
+                `I would like to ask about order ${order.orderNumber}.`,
+                "",
+                `Email: ${order.email}`,
+                "",
+                `Total: ${formatWhatsAppMoney(order.total)}`,
+                "",
+                "Thank you!",
+              ];
+
+              const url = buildWhatsAppUrl(lines.join("\n"), WHATSAPP_NUMBER_E164);
+              window.open(url, "_blank", "noopener,noreferrer");
+            }}
+          >
+            WhatsApp us about this order
+          </button>
+
+          <div className="flex justify-center gap-3">
+            <Link href="/" className="btn-outline">
+              Continue shopping
+            </Link>
+            <Link href="/account" className="btn-primary">
+              View my orders
+            </Link>
+          </div>
         </div>
+
       </div>
     </div>
   );

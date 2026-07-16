@@ -4,10 +4,14 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { FiHeart, FiShoppingCart } from "react-icons/fi";
+import { FiHeart, FiPhone, FiShoppingCart } from "react-icons/fi";
+
+import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 
 import { Rating } from "@/components/ui/Rating";
 import { cn, formatCurrency } from "@/lib/format";
+
+
 import type { Product } from "@/lib/types";
 import { useCartStore } from "@/store/useCartStore";
 import { useWishlistStore } from "@/store/useWishlistStore";
@@ -18,14 +22,7 @@ export function ProductCard({ product }: { product: Product }) {
   const wishlisted = useWishlistStore((s) => s.ids.includes(product.id));
   const [adding, setAdding] = useState(false);
 
-  const handleAdd = async () => {
-    setAdding(true);
-    try {
-      await add(product.id, 1);
-    } finally {
-      setAdding(false);
-    }
-  };
+
 
   return (
     <motion.article
@@ -103,7 +100,7 @@ export function ProductCard({ product }: { product: Product }) {
           <Rating value={product.ratingAvg} count={product.ratingCount} />
         </div>
 
-        <div className="mt-auto flex items-end justify-between pt-4">
+        <div className="mt-auto flex flex-col gap-3 pt-4">
           <div>
             <p className="text-lg font-bold text-secondary dark:text-white">
               {formatCurrency(product.price, product.currency)}
@@ -114,15 +111,49 @@ export function ProductCard({ product }: { product: Product }) {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={adding || !product.inStock}
-            className="btn-primary h-10 w-10 rounded-full p-0"
-            aria-label="Add to cart"
-          >
-            <FiShoppingCart className="h-4 w-4" />
-          </button>
+          <div className="grid gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setAdding(true);
+                try {
+                  await add(product.id, 1);
+                  window.location.href = "/cart";
+                } finally {
+                  setAdding(false);
+                }
+              }}
+              disabled={adding || !product.inStock}
+              className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-base"
+            >
+              <FiShoppingCart className="h-5 w-5" /> Add to cart
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+
+                const msgLines = [
+                  "Hello Smart Computers 👋",
+                  `I would like to order: ${product.name} (x1)`,
+                  `Price: ${formatWhatsAppMoney(product.price)}`,
+                  "",
+
+                  "Please confirm availability and delivery details.",
+                ];
+                const url = buildWhatsAppUrl(
+                  msgLines.join("\n"),
+                  WHATSAPP_NUMBER_E164
+                );
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+              disabled={!product.inStock}
+              className="btn-secondary flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-base"
+              aria-label="Order via WhatsApp"
+            >
+              <FiPhone className="h-5 w-5" /> WhatsApp
+            </button>
+          </div>
+
         </div>
         {!product.inStock && (
           <p className="mt-2 text-xs font-medium text-danger">Out of stock</p>

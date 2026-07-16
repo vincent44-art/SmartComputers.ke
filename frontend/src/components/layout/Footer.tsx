@@ -73,7 +73,8 @@ export function Footer() {
               ))}
             </div>
 
-            <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+
+            <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/40">
               <p className="text-sm font-semibold text-secondary dark:text-white">
                 Shop location
               </p>

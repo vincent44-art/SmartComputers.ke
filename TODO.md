@@ -1,8 +1,17 @@
-# TODO
+# TODO - Fix Next.js static 404s
 
-- [ ] Update `backend/app/api/admin.py` to filter out empty image URLs before inserting `ProductImage` rows during product create/update.
-- [ ] Add server-side validation to require at least one non-empty image URL.
-- [ ] Smoke test: save a product from `/admin/products/new` and ensure 201 response.
-- [x] Smoke test code compile: `python3 -m py_compile backend/app/api/admin.py`
+## Step 1 — Build/runtime verification
+- [ ] Inspect `frontend/.next/standalone` expectations vs current repo build artifacts.
+- [ ] Verify nginx always proxies to the frontend Next server.
 
+## Step 2 — Implement fail-fast Dockerfile checks
+- [ ] Update `frontend/Dockerfile` to assert `server.js` and `.next/static` exist in the standalone output during build.
 
+## Step 3 — (If needed) fix serving/static path
+- [ ] Adjust Dockerfile copy paths / runtime file layout so Next standalone serves `/_next/static/*` correctly.
+
+## Step 4 — Nginx hardening
+- [ ] Add explicit `location /_next/` proxy block if required.
+
+## Step 5 — Test
+- [ ] Rebuild containers and validate with curl: `GET /` and `GET /_next/static/...` return 200.

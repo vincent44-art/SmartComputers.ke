@@ -41,13 +41,22 @@ export function setStoredToken(token: string | null): void {
 
 export function getGuestSessionId(): string {
   if (typeof window === "undefined") return "server";
+
   let id = window.localStorage.getItem(SESSION_ID_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    // crypto.randomUUID() is not available in some older/edge runtimes.
+    // Provide a safe fallback so guest carts never lose their session id.
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      id = crypto.randomUUID();
+    } else {
+      id = `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
     window.localStorage.setItem(SESSION_ID_KEY, id);
   }
+
   return id;
 }
+
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken();

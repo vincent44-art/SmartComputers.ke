@@ -14,8 +14,9 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-primary/18 blur-3xl" />
+        <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-accent/18 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
       </div>
 
       <div className="container-page grid items-center gap-10 py-16 lg:grid-cols-2 lg:py-24">
@@ -77,12 +78,12 @@ export function Hero() {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
           className="relative"
         >
-          <div className="card glow relative aspect-[4/3] overflow-hidden rounded-3xl">
+          <div className="card glow relative aspect-[4/3] overflow-hidden rounded-3xl ring-1 ring-primary/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1200&q=80"
