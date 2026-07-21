@@ -9,7 +9,10 @@ import { CartDrawer } from "@/components/cart/CartDrawer";
 import { Providers } from "./providers";
 import "./globals.css";
 
+// next/font/google requires outbound network. In some environments builds fail (ETIMEDOUT).
+// Fallback to system fonts to keep the app building/running.
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://smartcomputers.ke";
 

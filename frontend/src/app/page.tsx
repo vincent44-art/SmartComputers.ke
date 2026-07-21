@@ -22,13 +22,41 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
 }
 
 export default async function HomePage() {
+  // CurrencySelect stores the preference in localStorage; home page is a server
+  // component so we can't read it directly here.
+  // The runtime will fetch currency-aware data on the client-side listing
+  // components; this keeps server rendering stable.
+  const emptyPaginated = { items: [], meta: {} as never };
+
   const [categories, featured, bestSellers, flashSale, latest] = await Promise.all([
-    safe<Category[]>(fetchCategories(), []),
-    safe(fetchProducts({ featured: true, perPage: 8 }), { items: [], meta: {} as never }),
-    safe(fetchProducts({ bestSeller: true, perPage: 8 }), { items: [], meta: {} as never }),
-    safe(fetchProducts({ flashSale: true, perPage: 8 }), { items: [], meta: {} as never }),
-    safe(fetchProducts({ sort: "newest", perPage: 8 }), { items: [], meta: {} as never }),
+    safe(fetchCategories(), []).catch((e) => {
+      // Extra hardening: never let SSR crash.
+      console.error("[HomePage] fetchCategories failed:", e);
+      return [];
+    }),
+
+    safe(fetchProducts({ featured: true, perPage: 8 }), emptyPaginated).catch((e) => {
+      console.error("[HomePage] fetchProducts(featured) failed:", e);
+      return emptyPaginated;
+    }),
+
+    safe(fetchProducts({ bestSeller: true, perPage: 8 }), emptyPaginated).catch((e) => {
+      console.error("[HomePage] fetchProducts(bestSeller) failed:", e);
+      return emptyPaginated;
+    }),
+
+    safe(fetchProducts({ flashSale: true, perPage: 8 }), emptyPaginated).catch((e) => {
+      console.error("[HomePage] fetchProducts(flashSale) failed:", e);
+      return emptyPaginated;
+    }),
+
+    safe(fetchProducts({ sort: "newest", perPage: 8 }), emptyPaginated).catch((e) => {
+      console.error("[HomePage] fetchProducts(newest) failed:", e);
+      return emptyPaginated;
+    }),
   ]);
+
+
 
   const brands: Brand[] = Array.from(
     new Map(

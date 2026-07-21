@@ -33,20 +33,68 @@ def _owner_kwargs() -> dict:
     return {"session_id": request.headers.get("X-Session-Id")}
 
 
-def _serialize_cart(items: list[CartItem]) -> dict:
-    subtotal = sum(float(i.product.price) * i.quantity for i in items if i.product)
+def _serialize_cart(items: list[CartItem], currency: str = "KES") -> dict:
+    subtotal = 0.0
+    serialized_items = []
+
+    from ..utils.fx import convert_amount
+
+    requested_currency = (currency or "KES").upper()
+
+    for i in items:
+        if not i.product:
+            continue
+        line_total = float(i.product.price) * i.quantity
+        subtotal += line_total
+
+        item_dict = i.to_dict()
+        # Convert line price if present
+        if item_dict.get("product") and "price" in item_dict["product"]:
+            converted = convert_amount(
+                float(item_dict["product"]["price"]), requested_currency
+            )
+            if converted is not None:
+                item_dict["product"]["price"] = converted
+                item_dict["product"]["currency"] = requested_currency
+        if "lineTotal" in item_dict:
+            converted_total = convert_amount(
+                float(item_dict["lineTotal"]), requested_currency
+            )
+            if converted_total is not None:
+                item_dict["lineTotal"] = converted_total
+                item_dict["currency"] = requested_currency
+
+
+        serialized_items.append(item_dict)
+
+    converted_subtotal = convert_amount(subtotal, requested_currency)
+
+    # If FX conversion is unavailable we must not lie about the currency.
+    # Keep amounts in base KES and report currency as KES.
+    response_currency = (
+        requested_currency if converted_subtotal is not None else "KES"
+    )
+
     return {
-        "items": [i.to_dict() for i in items],
-        "subtotal": round(subtotal, 2),
+        "items": serialized_items,
+        "subtotal": round(
+            converted_subtotal if converted_subtotal is not None else subtotal, 2
+        ),
         "itemCount": sum(i.quantity for i in items),
+        "currency": response_currency,
     }
+
+
+
 
 
 @cart_bp.get("")
 @jwt_required(optional=True)
 def get_cart():
     items = CartItem.query.filter(_owner_filter()).all()
-    return jsonify(_serialize_cart(items)), 200
+    requested_currency = (request.args.get("currency") or "KES").upper()
+    return jsonify(_serialize_cart(items, requested_currency)), 200
+
 
 
 @cart_bp.post("/items")
@@ -103,3 +151,13 @@ def remove_item(item_id: int):
     db.session.commit()
     items = CartItem.query.filter(_owner_filter()).all()
     return jsonify(_serialize_cart(items)), 200
+
+
+@cart_bp.delete("/items")
+@jwt_required(optional=True)
+def clear_cart():
+    """Delete all cart items for the current owner (JWT user or guest session)."""
+    db.session.query(CartItem).filter(_owner_filter()).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify(_serialize_cart([])), 200
+

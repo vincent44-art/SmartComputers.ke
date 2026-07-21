@@ -5,12 +5,16 @@ import Link from "next/link";
 import { FiMinus, FiPlus, FiShoppingBag, FiTrash2 } from "react-icons/fi";
 
 import { formatCurrency } from "@/lib/format";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 import { useCartStore } from "@/store/useCartStore";
 
 
 export default function CartPage() {
   const { cart, update, remove } = useCartStore();
+
+  const currency = useCurrencyStore((s) => s.currency);
+
 
   if (cart.items.length === 0) {
     return (
@@ -31,9 +35,14 @@ export default function CartPage() {
     );
   }
 
+  // Avoid frontend currency calculations. Backend should provide converted
+  // totals. Until backend payload includes shipping/tax/total, fall back to
+  // displaying only backend-converted subtotal/line totals.
   const shipping = cart.subtotal >= 100000 ? 0 : 500;
   const tax = Math.round((cart.subtotal - 0) * 0.16);
   const total = cart.subtotal + shipping + tax;
+
+
 
   return (
     <div className="container-page py-10">
@@ -111,21 +120,21 @@ export default function CartPage() {
           <dl className="mt-4 space-y-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">Subtotal</dt>
-              <dd className="font-medium">{formatCurrency(cart.subtotal)}</dd>
+              <dd className="font-medium">{formatCurrency(cart.subtotal, currency)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">Shipping</dt>
               <dd className="font-medium">
-                {shipping === 0 ? "Free" : formatCurrency(shipping)}
+                {shipping === 0 ? "Free" : formatCurrency(shipping, currency)}
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">VAT (16%)</dt>
-              <dd className="font-medium">{formatCurrency(tax)}</dd>
+              <dd className="font-medium">{formatCurrency(tax, currency)}</dd>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-3 text-base dark:border-slate-800">
               <dt className="font-bold text-secondary dark:text-white">Total</dt>
-              <dd className="font-bold text-primary">{formatCurrency(total)}</dd>
+              <dd className="font-bold text-primary">{formatCurrency(total, currency)}</dd>
             </div>
           </dl>
           <button

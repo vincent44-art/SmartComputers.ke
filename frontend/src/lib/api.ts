@@ -60,12 +60,39 @@ export function getGuestSessionId(): string {
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && token.trim().length > 0) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   if (typeof window !== "undefined") {
     config.headers["X-Session-Id"] = getGuestSessionId();
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (typeof window === "undefined") throw error;
+
+    const status = error?.response?.status;
+    if (status !== 401) throw error;
+
+    // Clear invalid/expired JWT and proceed as guest.
+    setStoredToken(null);
+
+    // Retry once; request interceptor will attach X-Session-Id.
+    const originalConfig = error.config;
+    if (!originalConfig || originalConfig.__isRetried) throw error;
+
+    originalConfig.__isRetried = true;
+    if (originalConfig.headers) {
+      delete originalConfig.headers.Authorization;
+    }
+
+    return api.request(originalConfig);
+  }
+);
+
 
 export function apiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {

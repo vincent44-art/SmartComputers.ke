@@ -43,7 +43,7 @@ const schema = z.object({
   shortDescription: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
 
-  categoryId: z.number().int().refine((v) => v > 0, "Category is required"),
+  categoryId: z.string().min(1, "Category is required"),
   brandId: z.number().int().nullable().optional(),
 
   condition: z.enum(CONDITIONS),
@@ -108,13 +108,33 @@ function toSpecs(values: FormValues): Record<string, string | null> | undefined 
   return Object.keys(out).length ? out : undefined;
 }
 
-function buildPayload(values: FormValues): AdminProductInput {
+function buildPayload(values: FormValues, categories?: { id: number; name: string }[]): AdminProductInput {
+  // Backend requires at least 1 non-empty image URL.
+  const sanitizedImages = (values.images ?? [])
+    .map((i) => (i.url ?? "").trim())
+    .filter((u) => u.length > 0);
+
+  const price = Number(values.price);
+  const stock = Number(values.stock);
+  const compareAtPrice =
+    values.compareAtPrice === null || values.compareAtPrice === undefined
+      ? null
+      : Number(values.compareAtPrice);
+
+  // Resolve category name → numeric ID for backend
+  const categoryName = (values.categoryId ?? "").trim().toLowerCase();
+  const matchedCategory = categories?.find(
+    (c) => c.name.toLowerCase() === categoryName
+  );
+  const resolvedCategoryId = matchedCategory?.id ?? 0;
+
   return {
     name: values.name,
-    price: values.price,
-    compareAtPrice: values.compareAtPrice ?? null,
-    stock: values.stock,
-    categoryId: values.categoryId,
+    price: Number.isFinite(price) ? price : 0,
+    compareAtPrice:
+      compareAtPrice === null || Number.isNaN(compareAtPrice) ? null : compareAtPrice,
+    stock: Number.isFinite(stock) ? stock : 0,
+    categoryId: resolvedCategoryId,
 
     brandId: values.brandId ?? null,
     shortDescription: values.shortDescription ?? undefined,
@@ -135,7 +155,7 @@ function buildPayload(values: FormValues): AdminProductInput {
     isFlashSale: values.isFlashSale,
 
     specs: toSpecs(values),
-    images: values.images.map((i) => i.url),
+    images: sanitizedImages,
   } as AdminProductInput;
 }
 
@@ -173,8 +193,6 @@ export default function AddProductPage() {
     queryFn: fetchCategories,
   });
 
-  const defaultCategoryId = categories?.[0]?.id ?? 0;
-
   const form = useForm<FormValues>({
     // cast to avoid RHF/zod generic mismatch in this repo
     resolver: zodResolver(schema) as any,
@@ -183,7 +201,7 @@ export default function AddProductPage() {
       name: "",
       shortDescription: "",
       description: "",
-      categoryId: defaultCategoryId,
+      categoryId: "",
       brandId: null,
       condition: "new",
       price: 0,
@@ -219,6 +237,40 @@ export default function AddProductPage() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const initialLoadRef = useRef(true);
   const [serverError, setServerError] = useState<string>("");
+  const warrantyAutoFilled = useRef(false);
+
+  // Auto-set warranty based on product name & condition
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const name = (values.name ?? "").toLowerCase();
+    const condition = values.condition;
+    const currentWarranty = (values.warranty ?? "").trim();
+
+    // Only auto-fill if warranty is empty or was previously auto-filled
+    if (currentWarranty && !warrantyAutoFilled.current) return;
+
+    let suggested = "";
+    if (condition === "refurbished") {
+      if (name.includes("monitor")) {
+        suggested = "3 months";
+      } else if (name.includes("laptop")) {
+        suggested = "6 months";
+      }
+    } else if (condition === "new") {
+      if (name.includes("monitor") || name.includes("laptop")) {
+        suggested = "1 year";
+      }
+    }
+
+    if (suggested && suggested !== currentWarranty) {
+      warrantyAutoFilled.current = true;
+      form.setValue("warranty", suggested, { shouldDirty: false });
+    } else if (!suggested && currentWarranty && warrantyAutoFilled.current) {
+      // Clear auto-filled warranty if conditions no longer match
+      warrantyAutoFilled.current = false;
+      form.setValue("warranty", "", { shouldDirty: false });
+    }
+  }, [values.name, values.condition, draftLoaded, form]);
 
   useEffect(() => {
     if (draftLoaded) return;
@@ -231,8 +283,8 @@ export default function AddProductPage() {
         ...prev,
         ...(parsed as any),
         categoryId:
-          typeof (parsed as any).categoryId === "number" &&
-          (parsed as any).categoryId > 0
+          typeof (parsed as any).categoryId === "string" &&
+          (parsed as any).categoryId.trim().length > 0
             ? (parsed as any).categoryId
             : prev.categoryId,
         images:
@@ -246,7 +298,7 @@ export default function AddProductPage() {
       setDraftLoaded(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultCategoryId, draftLoaded]);
+  }, [draftLoaded]);
 
   useEffect(() => {
     if (!draftLoaded) return;
@@ -282,8 +334,39 @@ export default function AddProductPage() {
   });
 
   const onSubmit = ((data) => {
+    // Prevent known backend 422s (images/categoryId/etc) from even hitting the API.
+    const imagesSanitized = (data.images ?? [])
+      .map((i) => (i.url ?? "").trim())
+      .filter((u) => u.length > 0);
+
+    if (!data.name?.trim()) {
+      setServerError("Product name is required");
+      return;
+    }
+    if (!data.categoryId?.trim()) {
+      setServerError("Please enter a category");
+      return;
+    }
+    // Resolve category name to ID
+    const categoryName = data.categoryId.trim().toLowerCase();
+    const matchedCategory = categories?.find(
+      (c) => c.name.toLowerCase() === categoryName
+    );
+    if (!matchedCategory) {
+      setServerError(`Category "${data.categoryId.trim()}" not found. Please select an existing category.`);
+      return;
+    }
+    if (data.price === null || data.price === undefined || Number.isNaN(data.price)) {
+      setServerError("Price is required");
+      return;
+    }
+    if (imagesSanitized.length < 1) {
+      setServerError("At least 1 image is required");
+      return;
+    }
+
     setServerError("");
-    createMutation.mutate(buildPayload(data));
+    createMutation.mutate(buildPayload(data, categories));
   }) satisfies SubmitHandler<FormValues>;
 
   // Ctrl/Cmd+S save
@@ -299,8 +382,6 @@ export default function AddProductPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleSubmit, onSubmit]);
-
-  const hasValidCategories = (categories?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -357,18 +438,19 @@ export default function AddProductPage() {
                 {categoriesLoading ? (
                   <Skeleton className="h-10 w-full" />
                 ) : (
-                  <select
-                    className="input"
-                    disabled={!hasValidCategories}
-                    {...register("categoryId", { valueAsNumber: true })}
-                  >
-                    <option value={0}>Select category</option>
-                    {categories?.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <input
+                      className="input"
+                      list="category-list"
+                      placeholder="Type or select a category…"
+                      {...register("categoryId")}
+                    />
+                    <datalist id="category-list">
+                      {categories?.map((c) => (
+                        <option key={c.id} value={c.name} />
+                      ))}
+                    </datalist>
+                  </>
                 )}
                 {errors.categoryId && (
                   <p className="text-sm text-danger">{errors.categoryId.message}</p>
@@ -596,11 +678,24 @@ export default function AddProductPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">RAM</label>
-                <input className="input" {...register("ram")} placeholder="e.g. 16GB" />
+                <input className="input" list="ram-options" {...register("ram")} placeholder="e.g. 16GB" />
+                <datalist id="ram-options">
+                  <option value="4GB" />
+                  <option value="8GB" />
+                  <option value="16GB" />
+                  <option value="32GB" />
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Storage</label>
-                <input className="input" {...register("storage")} placeholder="e.g. 512GB SSD" />
+                <input className="input" list="storage-options" {...register("storage")} placeholder="e.g. 512GB SSD" />
+                <datalist id="storage-options">
+                  <option value="128GB" />
+                  <option value="256GB" />
+                  <option value="512GB" />
+                  <option value="1TB" />
+                  <option value="2TB" />
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Display</label>

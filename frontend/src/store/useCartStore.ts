@@ -7,6 +7,7 @@ import {
   updateCartItem,
 } from "@/lib/services";
 import type { Cart } from "@/lib/types";
+import { useCurrencyStore } from "./useCurrencyStore";
 
 interface CartState {
   cart: Cart;
@@ -19,6 +20,7 @@ interface CartState {
   setDrawer: (open: boolean) => void;
 }
 
+
 const emptyCart: Cart = { items: [], subtotal: 0, itemCount: 0 };
 
 export const useCartStore = create<CartState>((set) => ({
@@ -26,17 +28,27 @@ export const useCartStore = create<CartState>((set) => ({
   loading: false,
   drawerOpen: false,
   setDrawer: (open) => set({ drawerOpen: open }),
-  refresh: async () => {
-    set({ loading: true });
-    try {
-      const cart = await fetchCart();
-      set({ cart });
-    } catch {
-      set({ cart: emptyCart });
-    } finally {
-      set({ loading: false });
-    }
-  },
+  // Monotonic request id to avoid race conditions when currency changes quickly.
+  refresh: (() => {
+    let requestId = 0;
+    return async () => {
+      const myId = ++requestId;
+      set({ loading: true });
+      try {
+        const currency = useCurrencyStore.getState().currency;
+        const cart = await fetchCart(currency);
+        // Only apply the newest response.
+        if (myId === requestId) set({ cart });
+      } catch {
+        if (myId === requestId) set({ cart: emptyCart });
+      } finally {
+        if (myId === requestId) set({ loading: false });
+      }
+    };
+  })(),
+  // Convenience: set currency then force an immediate cart refresh.
+
+
   add: async (productId, quantity = 1) => {
     const cart = await addCartItem(productId, quantity);
     set({ cart, drawerOpen: true });

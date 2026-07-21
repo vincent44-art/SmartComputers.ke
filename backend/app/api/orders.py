@@ -8,8 +8,10 @@ from ..extensions import db
 from ..models import Coupon, Order, OrderItem, Product
 from ..utils.auth import current_user
 from ..utils.errors import NotFoundError, ValidationError
+from ..utils.fx import convert_amount
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
+
 
 TAX_RATE = 0.16  # Kenya VAT
 FREE_SHIPPING_THRESHOLD = 100_000
@@ -48,10 +50,14 @@ def _compute_totals(items: list[dict], coupon_code: str | None):
     return resolved, subtotal, discount, shipping, tax, total, coupon
 
 
+
 @orders_bp.post("")
 @jwt_required(optional=True)
 def create_order():
     data = request.get_json(silent=True) or {}
+
+    requested_currency = (request.args.get("currency") or "KES").upper().strip()
+
     items = data.get("items") or []
     if not items:
         raise ValidationError("Cannot create an order with no items")
@@ -63,6 +69,16 @@ def create_order():
     resolved, subtotal, discount, shipping, tax, total, coupon = _compute_totals(
         items, data.get("couponCode")
     )
+
+    # Convert money amounts for response only.
+    # Keep DB stored values in base KES.
+    currency = requested_currency
+    subtotal_c = convert_amount(subtotal, currency)
+    discount_c = convert_amount(discount, currency)
+    shipping_c = convert_amount(float(shipping), currency)
+    tax_c = convert_amount(tax, currency)
+    total_c = convert_amount(total, currency)
+
 
     user = current_user()
     order = Order(
@@ -80,6 +96,7 @@ def create_order():
         billing_address=data.get("billingAddress") or data.get("shippingAddress"),
         notes=data.get("notes"),
     )
+
     for product, quantity in resolved:
         order.items.append(
             OrderItem(
@@ -98,7 +115,31 @@ def create_order():
 
     db.session.add(order)
     db.session.commit()
-    return jsonify(order.to_dict(detail=True)), 201
+
+    # Convert only for the response.
+    # If rates are unavailable, we fall back to base KES values (no None).
+    resp = order.to_dict(detail=True)
+    currency = requested_currency
+    resp["currency"] = currency
+    resp["subtotal"] = subtotal_c if subtotal_c is not None else resp.get("subtotal")
+    resp["discount"] = discount_c if discount_c is not None else resp.get("discount")
+    resp["shipping"] = shipping_c if shipping_c is not None else resp.get("shipping")
+    resp["tax"] = tax_c if tax_c is not None else resp.get("tax")
+    resp["total"] = total_c if total_c is not None else resp.get("total")
+
+    # Convert order item unit_price values (response only).
+    for it in resp.get("items", []) or []:
+        try:
+            unit_kes = it.get("unitPrice")
+            if unit_kes is not None:
+                converted = convert_amount(float(unit_kes), currency)
+                if converted is not None:
+                    it["unitPrice"] = converted
+        except Exception:
+            continue
+
+    return jsonify(resp), 201
+
 
 
 @orders_bp.get("")

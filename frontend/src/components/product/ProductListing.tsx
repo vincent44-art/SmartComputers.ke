@@ -8,8 +8,10 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 import { fetchFacets, fetchProducts, type ProductQuery } from "@/lib/services";
 import { cn } from "@/lib/format";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 
 import { FilterSidebar, type FilterState } from "./FilterSidebar";
+
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
@@ -35,7 +37,9 @@ export function ProductListing({
   title: string;
   baseQuery?: ProductQuery;
 }) {
+  const currency = useCurrencyStore((s) => s.currency);
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
+
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -46,6 +50,7 @@ export function ProductListing({
   const query: ProductQuery = useMemo(
     () => ({
       ...baseQuery,
+      currency,
       brand: filters.brand.length ? filters.brand : baseQuery.brand,
       ram: filters.ram,
       storage: filters.storage,
@@ -56,8 +61,9 @@ export function ProductListing({
       page,
       perPage: 12,
     }),
-    [baseQuery, filters, sort, page]
+    [baseQuery, filters, sort, page, currency]
   );
+
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["products", query],

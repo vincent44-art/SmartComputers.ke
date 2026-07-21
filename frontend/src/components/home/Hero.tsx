@@ -3,7 +3,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import React, { useEffect } from "react";
-import { HERO_IMAGE_URLS } from "./heroImages";
+
 
 
 function clamp(n: number, min: number, max: number) {
@@ -245,20 +245,14 @@ export function Hero() {
                             transform: "rotateX(110deg)",
                           }}
                         >
-                          {/* screen content */}
+                          {/* screen content (removed hero images) */}
                           <div className="flex h-full w-full items-center justify-center">
-                            <div className="relative h-[170px] w-full">
-                              <img
-                                src={HERO_IMAGE_URLS.macbook}
-                                alt="MacBook Pro"
-                                className="h-full w-full object-cover opacity-95"
-                                draggable={false}
-                              />
-                            </div>
+                            <div className="h-[110px] w-[240px] rounded-2xl bg-white/60 ring-1 ring-black/5" />
                           </div>
                         </motion.div>
                         <div className="absolute bottom-[-2px] left-1/2 h-[24px] w-[330px] -translate-x-1/2 rounded-full bg-black/5 blur-2xl opacity-70" />
                       </div>
+
 
                       {/* bezels */}
                       <div className="pointer-events-none absolute left-7 top-[-26px] h-[12px] w-[190px] rounded-full bg-black/5 opacity-60" />
@@ -272,12 +266,9 @@ export function Hero() {
                     <motion.div className="absolute left-1/2 top-full h-7 w-[240px] -translate-x-1/2 -translate-y-2 rounded-full bg-black/10 blur-3xl" />
                     <div className="relative h-[180px] w-[360px]">
                       <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-purple-500/10 via-transparent to-indigo-500/10" />
-                      <img
-                        src={HERO_IMAGE_URLS.headset}
-                        alt="Gaming Headset"
-                        className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-contain opacity-95"
-                        draggable={false}
-                      />
+                      {/* hero image removed */}
+                      <div className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-white/60 ring-1 ring-black/5" />
+
                     </div>
                   </FloatWrap>
                 </motion.div>

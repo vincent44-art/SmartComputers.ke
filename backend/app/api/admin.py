@@ -224,21 +224,28 @@ def admin_create_product():
         slug = f"{base_slug}-{suffix}"
 
     # If slug is still colliding (e.g. race condition), retry with a suffix.
-    sku = data.get("sku")
+    # SKU can come from the client or be auto-generated.
+    # The DB enforces UNIQUE constraint on products.sku, so we must also
+    # handle collisions (similar to slug) to avoid 500s.
+    sku = (data.get("sku") or "").strip() or None
     if not sku:
         sku = f"SC-{2000 + count}"
 
     max_attempts = 5
     attempt = 0
 
-    # Create the product and retry if the slug collides.
+    base_sku = sku
+    sku_suffix = 0
+
+    # Create the product and retry if either slug or sku collides.
     # (We retry on DB uniqueness failure because there can be races.)
     while True:
         try:
+            effective_sku = base_sku if sku_suffix == 0 else f"{base_sku}-{sku_suffix}"
             product = Product(
                 name=data["name"],
                 slug=slug,
-                sku=sku,
+                sku=effective_sku,
                 price=data["price"],
                 category_id=data["categoryId"],
             )
@@ -246,8 +253,9 @@ def admin_create_product():
             db.session.flush()  # force INSERT so we can catch IntegrityError
             break
         except Exception as e:
-            # Only handle slug collisions; anything else should be raised.
             msg = str(e).lower()
+
+            # slug collision
             if "unique constraint failed" in msg and "products.slug" in msg:
                 attempt += 1
                 if attempt >= max_attempts:
@@ -255,6 +263,15 @@ def admin_create_product():
                 suffix += 1
                 slug = f"{base_slug}-{suffix}"
                 continue
+
+            # sku collision
+            if "unique constraint failed" in msg and "products.sku" in msg:
+                attempt += 1
+                if attempt >= max_attempts:
+                    raise ValidationError("Could not generate a unique SKU for this product")
+                sku_suffix += 1
+                continue
+
             raise
 
 

@@ -7,7 +7,9 @@ import { FiHeart } from "react-icons/fi";
 import { ProductCard } from "@/components/product/ProductCard";
 import { ProductCardSkeleton } from "@/components/ui/Skeleton";
 import { fetchProducts } from "@/lib/services";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 import { useWishlistStore } from "@/store/useWishlistStore";
+
 
 export default function WishlistPage() {
   const ids = useWishlistStore((s) => s.ids);
@@ -17,7 +19,8 @@ export default function WishlistPage() {
     queries: [
       {
         queryKey: ["wishlist-products"],
-        queryFn: () => fetchProducts({ perPage: 60 }),
+        queryFn: () => fetchProducts({ perPage: 60, currency: useCurrencyStore.getState().currency }),
+
         enabled: ids.length > 0,
       },
     ],

@@ -5,14 +5,22 @@ import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 
 import { useCartStore } from "@/store/useCartStore";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 
 function CartBootstrap() {
   const refresh = useCartStore((s) => s.refresh);
+  const currency = useCurrencyStore((s) => s.currency);
+
+
   useEffect(() => {
+    // Re-fetch cart whenever the selected storefront currency changes
+    // so all returned money values are converted by the backend.
     refresh();
-  }, [refresh]);
+  }, [refresh, currency]);
+
   return null;
 }
+
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(

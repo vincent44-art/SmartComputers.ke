@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from ..extensions import db
 from ..models import Brand, Category, Product
 from ..utils.errors import NotFoundError
+from ..utils.fx import convert_amount
 from ..utils.pagination import paginate
 
 products_bp = Blueprint("products", __name__, url_prefix="/api/products")
@@ -80,7 +81,27 @@ def list_products():
     sort = request.args.get("sort", "newest")
     query = query.order_by(_SORT_MAP.get(sort, Product.created_at.desc()))
 
-    return jsonify(paginate(query, lambda p: p.to_dict())), 200
+    requested_currency = (request.args.get("currency") or "KES").upper()
+
+    def serialize(p: Product):
+        data = p.to_dict()
+        # Backend-only conversion. Never store converted prices in DB; response only.
+        if requested_currency and requested_currency != "KES":
+            converted_price = convert_amount(float(p.price), requested_currency)
+            if converted_price is not None:
+                data["price"] = converted_price
+            if p.compare_at_price is not None:
+                converted_compare = convert_amount(
+                    float(p.compare_at_price), requested_currency
+                )
+                if converted_compare is not None:
+                    data["compareAtPrice"] = converted_compare
+            data["currency"] = requested_currency
+        return data
+
+    return jsonify(paginate(query, serialize)), 200
+
+
 
 
 @products_bp.get("/facets")
@@ -115,6 +136,8 @@ def get_product(slug: str):
     if not product:
         raise NotFoundError("Product not found")
 
+    requested_currency = (request.args.get("currency") or "KES").upper()
+
     related = (
         Product.query.filter(
             Product.category_id == product.category_id, Product.id != product.id
@@ -124,8 +147,49 @@ def get_product(slug: str):
         .all()
     )
     data = product.to_dict(detail=True)
-    data["related"] = [p.to_dict() for p in related]
-    data["reviews"] = [
-        r.to_dict() for r in product.reviews if r.is_approved
-    ]
+
+    if requested_currency and requested_currency != "KES":
+        # Convert base product fields
+        if "price" in data:
+            converted_price = convert_amount(float(data["price"]), requested_currency)
+            if converted_price is not None:
+                data["price"] = converted_price
+
+        if data.get("compareAtPrice") is not None:
+            converted_compare = convert_amount(
+                float(data["compareAtPrice"]), requested_currency
+            )
+            if converted_compare is not None:
+                data["compareAtPrice"] = converted_compare
+
+        data["currency"] = requested_currency
+
+
+        # Convert related products
+        related_serialized = []
+        for p in related:
+            rd = p.to_dict()
+            if "price" in rd and p.price is not None:
+                converted_price = convert_amount(float(p.price), requested_currency)
+                if converted_price is not None:
+                    rd["price"] = converted_price
+
+            if rd.get("compareAtPrice") is not None and p.compare_at_price is not None:
+                converted_compare = convert_amount(
+                    float(p.compare_at_price), requested_currency
+                )
+                if converted_compare is not None:
+                    rd["compareAtPrice"] = converted_compare
+
+            rd["currency"] = requested_currency
+
+            related_serialized.append(rd)
+
+        data["related"] = related_serialized
+    else:
+        data["related"] = [p.to_dict() for p in related]
+
+    data["reviews"] = [r.to_dict() for r in product.reviews if r.is_approved]
+
     return jsonify(data), 200
+

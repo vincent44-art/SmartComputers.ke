@@ -14,7 +14,9 @@ import {
   FiX,
 } from "react-icons/fi";
 
+import { CurrencySelect } from "@/components/ui/CurrencySelect";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+
 import { fetchCategories } from "@/lib/services";
 import { cn } from "@/lib/format";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -143,6 +145,8 @@ export function Navbar() {
         </form>
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
+          <CurrencySelect />
+
           <ThemeToggle />
           <Link
             href="/wishlist"

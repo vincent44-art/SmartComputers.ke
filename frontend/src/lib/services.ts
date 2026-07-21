@@ -33,7 +33,9 @@ export interface ProductQuery {
   sort?: string;
   page?: number;
   perPage?: number;
+  currency?: string;
 }
+
 
 function toParams(query: ProductQuery): URLSearchParams {
   const params = new URLSearchParams();
@@ -54,6 +56,8 @@ export async function fetchProducts(
   return data;
 }
 
+
+
 export async function fetchProduct(slug: string): Promise<Product> {
   const { data } = await api.get<Product>(`/api/products/${slug}`);
   return data;
@@ -69,10 +73,13 @@ export async function fetchCategories(): Promise<Category[]> {
   return data;
 }
 
-export async function fetchCart(): Promise<Cart> {
-  const { data } = await api.get<Cart>("/api/cart");
+export async function fetchCart(currency?: string): Promise<Cart> {
+  const { data } = await api.get<Cart>("/api/cart", {
+    params: currency ? { currency } : undefined,
+  });
   return data;
 }
+
 
 export async function addCartItem(
   productId: number,
@@ -99,6 +106,12 @@ export async function removeCartItem(itemId: number): Promise<Cart> {
   const { data } = await api.delete<Cart>(`/api/cart/items/${itemId}`);
   return data;
 }
+
+export async function clearCart(): Promise<Cart> {
+  const { data } = await api.delete<Cart>("/api/cart/items");
+  return data;
+}
+
 
 export async function validateCoupon(
   code: string,

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,15 +9,18 @@ import { FaPaypal } from "react-icons/fa6";
 
 import { apiErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 
 import {
   createOrder,
   initiatePayment,
   validateCoupon,
+  clearCart,
   type CheckoutPayload,
 } from "@/lib/services";
 import { useCartStore } from "@/store/useCartStore";
+
 import { useAuthStore } from "@/store/useAuthStore";
 
 const PAYMENT_METHODS = [
@@ -28,6 +32,7 @@ const PAYMENT_METHODS = [
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, refresh } = useCartStore();
+  const currency = useCurrencyStore((s) => s.currency);
   const user = useAuthStore((s) => s.user);
 
   const [form, setForm] = useState({
@@ -59,7 +64,7 @@ export default function CheckoutPage() {
     try {
       const res = await validateCoupon(couponCode, cart.subtotal);
       setDiscount(res.discount);
-      setCouponMsg(`Applied ${res.coupon.code} — you saved ${formatCurrency(res.discount)}`);
+                  {formatCurrency(res.discount, currency)}
     } catch (err) {
       setDiscount(0);
       setCouponMsg(apiErrorMessage(err));
@@ -96,8 +101,13 @@ export default function CheckoutPage() {
         method,
         phone: form.phone,
       });
+
+      // Important: remove items from the cart so a full reload shows an empty cart.
+      await clearCart();
       await refresh();
+
       router.push(`/order/${order.orderNumber}`);
+
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -187,7 +197,7 @@ export default function CheckoutPage() {
                 <span className="text-slate-600 dark:text-slate-300">
                   {line.product?.name} × {line.quantity}
                 </span>
-                <span className="font-medium">{formatCurrency(line.lineTotal)}</span>
+                <span className="font-medium">{formatCurrency(line.lineTotal, currency)}</span>
               </div>
             ))}
           </div>
@@ -210,12 +220,12 @@ export default function CheckoutPage() {
           <dl className="mt-5 space-y-3 border-t border-slate-200 pt-5 text-sm dark:border-slate-800">
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">Subtotal</dt>
-              <dd className="font-medium">{formatCurrency(cart.subtotal)}</dd>
+              <dd className="font-medium">{formatCurrency(cart.subtotal, currency)}</dd>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-success">
                 <dt>Discount</dt>
-                <dd>-{formatCurrency(discount)}</dd>
+                <dd>-{formatCurrency(discount, currency)}</dd>
               </div>
             )}
             <div className="flex justify-between">
@@ -226,7 +236,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">VAT (16%)</dt>
-              <dd className="font-medium">{formatCurrency(tax)}</dd>
+              <dd className="font-medium">{formatCurrency(tax, currency)}</dd>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-3 text-base dark:border-slate-800">
               <dt className="font-bold text-secondary dark:text-white">Total</dt>
