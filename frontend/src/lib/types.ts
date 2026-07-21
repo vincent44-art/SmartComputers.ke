@@ -207,6 +207,17 @@ export interface BlogPost {
   related?: BlogPost[];
 }
 
+export interface RecommendationItem {
+  product: Product;
+  score: number;
+  reason: string;
+}
+
+export interface RecommendationResponse {
+  products: RecommendationItem[];
+  fallback: boolean;
+}
+
 export interface AdminAnalytics {
   totals: {
     revenue: number;

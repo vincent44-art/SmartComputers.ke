@@ -3,15 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FiMinus, FiPlus, FiShoppingBag, FiTrash2 } from "react-icons/fi";
+import { useState } from "react";
 
 import { formatCurrency } from "@/lib/format";
 import { useCurrencyStore } from "@/store/useCurrencyStore";
 import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 import { useCartStore } from "@/store/useCartStore";
+import { CartRecommendations } from "@/components/recommendations/CartRecommendations";
 
 
 export default function CartPage() {
   const { cart, update, remove } = useCartStore();
+  const [showRecommendations, setShowRecommendations] = useState(true);
 
   const currency = useCurrencyStore((s) => s.currency);
 
@@ -172,6 +175,12 @@ export default function CartPage() {
 
         </div>
       </div>
+
+      {/* You May Also Like - Recommendation Section */}
+      <CartRecommendations
+        visible={showRecommendations}
+        onClose={() => setShowRecommendations(false)}
+      />
     </div>
   );
 }

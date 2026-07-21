@@ -15,6 +15,7 @@ def register_api(app: Flask) -> None:
     from .orders import orders_bp
     from .payments import payments_bp
     from .products import products_bp
+    from .recommendations import recommendations_bp
     from .reviews import reviews_bp
     from .wishlist import wishlist_bp
 
@@ -32,5 +33,6 @@ def register_api(app: Flask) -> None:
         blog_bp,
         newsletter_bp,
         admin_bp,
+        recommendations_bp,
     ):
         app.register_blueprint(bp)

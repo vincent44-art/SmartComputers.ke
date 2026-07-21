@@ -13,6 +13,7 @@ import type {
   Order,
   Paginated,
   Product,
+  RecommendationResponse,
   Review,
   User,
 } from "./types";
@@ -189,6 +190,33 @@ export async function submitReview(
 ): Promise<Review> {
   const { data } = await api.post<Review>(`/api/products/${slug}/reviews`, payload);
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// Recommendations
+// ---------------------------------------------------------------------------
+export async function fetchRecommendations(
+  currency?: string
+): Promise<RecommendationResponse> {
+  const { data } = await api.get<RecommendationResponse>(
+    "/api/recommendations/cart",
+    { params: currency ? { currency } : undefined }
+  );
+  return data;
+}
+
+export async function trackRecommendationClick(
+  productId: number,
+  position?: number
+): Promise<void> {
+  await api.post("/api/recommendations/click", { productId, position });
+}
+
+export async function trackRecommendationAdded(
+  productId: number,
+  position?: number
+): Promise<void> {
+  await api.post("/api/recommendations/added", { productId, position });
 }
 
 // ---------------------------------------------------------------------------

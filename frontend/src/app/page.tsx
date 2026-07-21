@@ -1,15 +1,15 @@
-import { BrandStrip } from "@/components/home/BrandStrip";
-import { CategoryShowcase } from "@/components/home/CategoryShowcase";
 import { FaqSection } from "@/components/home/FaqSection";
+import { FeaturedBrandsMarquee } from "@/components/home/FeaturedBrandsMarquee";
 import { FlashSaleBanner } from "@/components/home/FlashSaleBanner";
 import { Hero } from "@/components/home/Hero";
+import { MarqueeCategories } from "@/components/home/MarqueeCategories";
 import { ProductCarousel } from "@/components/home/ProductCarousel";
 import { RecentlyViewed } from "@/components/home/RecentlyViewed";
 import { Testimonials } from "@/components/home/Testimonials";
 import { TrustBadges } from "@/components/home/TrustBadges";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { fetchCategories, fetchProducts } from "@/lib/services";
-import type { Brand, Category, Product } from "@/lib/types";
+import type { Category } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -58,17 +58,6 @@ export default async function HomePage() {
 
 
 
-  const brands: Brand[] = Array.from(
-    new Map(
-      // Take a larger set by combining multiple product queries.
-      [...latest.items, ...featured.items, ...bestSellers.items]
-        .map((p: Product) => p.brand)
-        .filter((b): b is Brand => Boolean(b))
-        .map((b) => [b.id, b])
-    ).values()
-  );
-
-
   return (
     <>
       <Hero />
@@ -77,12 +66,16 @@ export default async function HomePage() {
         <TrustBadges />
       </section>
 
-      <section className="container-page py-8">
-        <SectionHeader
-          title="Shop by category"
-          subtitle="Find exactly what you need, faster"
-        />
-        <CategoryShowcase categories={categories} />
+      <FeaturedBrandsMarquee />
+
+      <section className="bg-[#F8F9FA] py-12">
+        <div className="container-page">
+          <SectionHeader
+            title="Shop by category"
+            subtitle="Find exactly what you need, faster"
+          />
+          <MarqueeCategories categories={categories} />
+        </div>
       </section>
 
       <section className="container-page py-8">
@@ -107,15 +100,6 @@ export default async function HomePage() {
         <SectionHeader title="Latest arrivals" subtitle="Fresh in stock" href="/search" />
         <ProductCarousel products={latest.items} />
       </section>
-
-      {brands.length > 0 && (
-        <section className="container-page py-8">
-          <SectionHeader title="Featured brands" />
-          {/* Shows more brands and moves them right-to-left under the banner */}
-          <BrandStrip brands={brands} />
-        </section>
-      )}
-
 
       <RecentlyViewed />
 
