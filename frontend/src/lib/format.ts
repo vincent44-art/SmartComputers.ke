@@ -1,19 +1,28 @@
-const SYMBOLS: Record<string, string> = {
-  KES: "KSh",
-  USD: "$",
-  TZS: "TSh",
-  UGX: "USh",
-};
+const DECIMAL_CURRENCIES = new Set(["USD", "EUR", "GBP"]);
 
 export function formatCurrency(amount: number, currency = "KES"): string {
   const code = (currency || "KES").toUpperCase();
-  const symbol = SYMBOLS[code] ?? code;
-  const rounded = Math.round(Number(amount) || 0);
 
-  // Keep formatting stable across browsers and enforce required symbols.
-  // Note: we intentionally avoid Intl currency formatting because it
-  // produces different symbols for KES/TZS/UGX.
-  return `${symbol} ${rounded.toLocaleString("en-KE")}`;
+  // Use Intl.NumberFormat for correct symbol placement, decimal precision,
+  // and grouping. EUR/USD/GBP use 2 decimal places; KES/TZS/UGX/AED use 0.
+  // This automatically picks the correct symbol for each currency code.
+  const decimals = DECIMAL_CURRENCIES.has(code) ? 2 : 0;
+  const locale = code === "EUR" ? "de-DE" : "en-KE";
+
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+      // Use narrowSymbol for USD ($) instead of (US$) and EUR (€) etc.
+      currencyDisplay: "narrowSymbol",
+    }).format(Number(amount) || 0);
+  } catch {
+    // Fallback for unsupported currency codes
+    const rounded = Math.round(Number(amount) || 0);
+    return `${code} ${rounded.toLocaleString("en-KE")}`;
+  }
 }
 
 

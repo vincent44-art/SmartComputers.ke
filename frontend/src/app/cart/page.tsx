@@ -38,12 +38,8 @@ export default function CartPage() {
     );
   }
 
-  // Avoid frontend currency calculations. Backend should provide converted
-  // totals. Until backend payload includes shipping/tax/total, fall back to
-  // displaying only backend-converted subtotal/line totals.
-  const shipping = cart.subtotal >= 100000 ? 0 : 500;
-  const tax = Math.round((cart.subtotal - 0) * 0.16);
-  const total = cart.subtotal + shipping + tax;
+  // Total equals subtotal — no shipping or VAT charges.
+  const total = cart.subtotal;
 
 
 
@@ -75,7 +71,7 @@ export default function CartPage() {
                   {line.product?.name}
                 </Link>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {formatCurrency(line.product?.price ?? 0)} each
+                  {formatCurrency(line.product?.price ?? 0, currency)} each
                 </p>
                 <div className="mt-auto flex items-center justify-between">
                   <div className="flex items-center rounded-full border border-slate-200 dark:border-slate-700">
@@ -100,7 +96,7 @@ export default function CartPage() {
                     </button>
                   </div>
                   <p className="font-bold text-secondary dark:text-white">
-                    {formatCurrency(line.lineTotal)}
+                    {formatCurrency(line.lineTotal, currency)}
                   </p>
                 </div>
               </div>
@@ -124,16 +120,6 @@ export default function CartPage() {
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">Subtotal</dt>
               <dd className="font-medium">{formatCurrency(cart.subtotal, currency)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500 dark:text-slate-400">Shipping</dt>
-              <dd className="font-medium">
-                {shipping === 0 ? "Free" : formatCurrency(shipping, currency)}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500 dark:text-slate-400">VAT (16%)</dt>
-              <dd className="font-medium">{formatCurrency(tax, currency)}</dd>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-3 text-base dark:border-slate-800">
               <dt className="font-bold text-secondary dark:text-white">Total</dt>

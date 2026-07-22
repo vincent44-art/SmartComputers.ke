@@ -7,9 +7,11 @@ import { FiMinus, FiPlus, FiShoppingBag, FiTrash2, FiX } from "react-icons/fi";
 
 import { formatCurrency } from "@/lib/format";
 import { useCartStore } from "@/store/useCartStore";
+import { useCurrencyStore } from "@/store/useCurrencyStore";
 
 export function CartDrawer() {
   const { cart, drawerOpen, setDrawer, update, remove } = useCartStore();
+  const currency = useCurrencyStore((s) => s.currency);
 
   return (
     <AnimatePresence>
@@ -78,7 +80,7 @@ export function CartDrawer() {
                           {line.product?.name}
                         </p>
                         <p className="text-sm font-bold text-primary">
-                          {formatCurrency(line.lineTotal)}
+                          {formatCurrency(line.lineTotal, currency)}
                         </p>
                         <div className="mt-auto flex items-center gap-2">
                           <div className="flex items-center rounded-full border border-slate-200 dark:border-slate-700">
@@ -120,7 +122,7 @@ export function CartDrawer() {
                   <div className="mb-4 flex items-center justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
                     <span className="text-lg font-bold text-secondary dark:text-white">
-                      {formatCurrency(cart.subtotal)}
+                      {formatCurrency(cart.subtotal, currency)}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
