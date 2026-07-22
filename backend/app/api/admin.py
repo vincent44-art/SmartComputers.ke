@@ -19,6 +19,7 @@ from ..models import (
     Brand,
     Category,
     Coupon,
+    HeroBanner,
     Order,
     Product,
     ProductImage,
@@ -359,6 +360,162 @@ def admin_create_brand():
     db.session.add(brand)
     db.session.commit()
     return jsonify(brand.to_dict()), 201
+
+
+# --------------------------------------------------------------------------- #
+# Hero Banners CRUD
+# --------------------------------------------------------------------------- #
+@admin_bp.get("/hero-banners")
+@admin_required
+def admin_list_hero_banners():
+    banners = HeroBanner.query.order_by(HeroBanner.display_order.asc()).all()
+    return jsonify([b.to_dict() for b in banners]), 200
+
+
+@admin_bp.post("/hero-banners")
+@admin_required
+def admin_create_hero_banner():
+    data = request.get_json(silent=True) or {}
+    if not data.get("title"):
+        raise ValidationError("Title is required")
+
+    # Determine next display order if not provided
+    display_order = data.get("displayOrder")
+    if display_order is None:
+        max_order = db.session.query(func.max(HeroBanner.display_order)).scalar()
+        display_order = (max_order or 0) + 1
+
+    banner = HeroBanner(
+        title=data["title"],
+        subtitle=data.get("subtitle"),
+        badge=data.get("badge"),
+        desktop_image=data.get("desktopImage"),
+        mobile_image=data.get("mobileImage"),
+        primary_text=data.get("primaryText"),
+        primary_url=data.get("primaryUrl"),
+        secondary_text=data.get("secondaryText"),
+        secondary_url=data.get("secondaryUrl"),
+        layout=data.get("layout", "left"),
+        overlay_opacity=data.get("overlayOpacity", 0.3),
+        animation=data.get("animation", "fade"),
+        display_order=display_order,
+        is_active=data.get("isActive", True),
+        start_date=_parse_datetime(data.get("startDate")),
+        end_date=_parse_datetime(data.get("endDate")),
+    )
+    db.session.add(banner)
+    db.session.commit()
+    return jsonify(banner.to_dict()), 201
+
+
+@admin_bp.patch("/hero-banners/<int:banner_id>")
+@admin_required
+def admin_update_hero_banner(banner_id: int):
+    banner = HeroBanner.query.get(banner_id)
+    if not banner:
+        raise NotFoundError("Hero banner not found")
+    data = request.get_json(silent=True) or {}
+
+    for field, attr in (
+        ("title", "title"),
+        ("subtitle", "subtitle"),
+        ("badge", "badge"),
+        ("desktopImage", "desktop_image"),
+        ("mobileImage", "mobile_image"),
+        ("primaryText", "primary_text"),
+        ("primaryUrl", "primary_url"),
+        ("secondaryText", "secondary_text"),
+        ("secondaryUrl", "secondary_url"),
+        ("layout", "layout"),
+        ("animation", "animation"),
+        ("displayOrder", "display_order"),
+    ):
+        if field in data:
+            setattr(banner, attr, data[field])
+
+    if "overlayOpacity" in data:
+        banner.overlay_opacity = data["overlayOpacity"]
+    if "isActive" in data:
+        banner.is_active = bool(data["isActive"])
+    if "startDate" in data:
+        banner.start_date = _parse_datetime(data["startDate"])
+    if "endDate" in data:
+        banner.end_date = _parse_datetime(data["endDate"])
+
+    db.session.commit()
+    return jsonify(banner.to_dict()), 200
+
+
+@admin_bp.delete("/hero-banners/<int:banner_id>")
+@admin_required
+def admin_delete_hero_banner(banner_id: int):
+    banner = HeroBanner.query.get(banner_id)
+    if not banner:
+        raise NotFoundError("Hero banner not found")
+    db.session.delete(banner)
+    db.session.commit()
+    return jsonify({"message": "Hero banner deleted"}), 200
+
+
+@admin_bp.post("/hero-banners/<int:banner_id>/duplicate")
+@admin_required
+def admin_duplicate_hero_banner(banner_id: int):
+    original = HeroBanner.query.get(banner_id)
+    if not original:
+        raise NotFoundError("Hero banner not found")
+
+    max_order = db.session.query(func.max(HeroBanner.display_order)).scalar()
+    banner = HeroBanner(
+        title=f"{original.title} (Copy)",
+        subtitle=original.subtitle,
+        badge=original.badge,
+        desktop_image=original.desktop_image,
+        mobile_image=original.mobile_image,
+        primary_text=original.primary_text,
+        primary_url=original.primary_url,
+        secondary_text=original.secondary_text,
+        secondary_url=original.secondary_url,
+        layout=original.layout,
+        overlay_opacity=original.overlay_opacity,
+        animation=original.animation,
+        display_order=(max_order or 0) + 1,
+        is_active=False,
+        start_date=original.start_date,
+        end_date=original.end_date,
+    )
+    db.session.add(banner)
+    db.session.commit()
+    return jsonify(banner.to_dict()), 201
+
+
+@admin_bp.patch("/hero-banners/reorder")
+@admin_required
+def admin_reorder_hero_banners():
+    data = request.get_json(silent=True) or {}
+    order_list = data.get("order")
+    if not isinstance(order_list, list):
+        raise ValidationError("Order must be a list of { id, displayOrder } objects")
+
+    for item in order_list:
+        banner_id = item.get("id")
+        new_order = item.get("displayOrder")
+        if banner_id is None or new_order is None:
+            continue
+        banner = HeroBanner.query.get(banner_id)
+        if banner:
+            banner.display_order = new_order
+
+    db.session.commit()
+    return jsonify({"message": "Reordered successfully"}), 200
+
+
+def _parse_datetime(iso_str: str | None) -> datetime | None:
+    if not iso_str:
+        return None
+    try:
+        return datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
 
 
 # --------------------------------------------------------------------------- #

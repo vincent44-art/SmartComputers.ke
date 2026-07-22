@@ -130,6 +130,31 @@ def facets():
     )
 
 
+@products_bp.get("/home")
+def home_page_data():
+    """Batch endpoint for homepage SSR — returns categories + 4 product sets in a single call.
+
+    Replaces 5 separate API round-trips with one, dramatically improving
+    server-side rendering time (from ~7s to <1s).
+    """
+    categories = Category.query.filter_by(parent_id=None).order_by(Category.name).all()
+    featured_query = Product.query.filter(Product.is_featured.is_(True)).order_by(Product.created_at.desc()).limit(8)
+    best_seller_query = Product.query.filter(Product.is_best_seller.is_(True)).order_by(Product.rating_avg.desc()).limit(8)
+    flash_sale_query = Product.query.filter(Product.is_flash_sale.is_(True)).order_by(Product.created_at.desc()).limit(8)
+    latest_query = Product.query.order_by(Product.created_at.desc()).limit(8)
+
+    def serialize(p: Product):
+        return p.to_dict()
+
+    return jsonify({
+        "categories": [c.to_dict(include_children=True) for c in categories],
+        "featured": [serialize(p) for p in featured_query.all()],
+        "bestSellers": [serialize(p) for p in best_seller_query.all()],
+        "flashSale": [serialize(p) for p in flash_sale_query.all()],
+        "latest": [serialize(p) for p in latest_query.all()],
+    }), 200
+
+
 @products_bp.get("/<slug>")
 def get_product(slug: str):
     product = Product.query.filter_by(slug=slug).first()

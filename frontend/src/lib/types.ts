@@ -218,6 +218,14 @@ export interface RecommendationResponse {
   fallback: boolean;
 }
 
+export interface HomePageData {
+  categories: Category[];
+  featured: Product[];
+  bestSellers: Product[];
+  flashSale: Product[];
+  latest: Product[];
+}
+
 export interface AdminAnalytics {
   totals: {
     revenue: number;
@@ -228,4 +236,26 @@ export interface AdminAnalytics {
   revenueSeries: { date: string; revenue: number }[];
   lowStock: Product[];
   recentOrders: Order[];
+}
+
+export interface HeroBanner {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  badge: string | null;
+  desktopImage: string | null;
+  mobileImage: string | null;
+  primaryText: string | null;
+  primaryUrl: string | null;
+  secondaryText: string | null;
+  secondaryUrl: string | null;
+  layout: "left" | "center" | "right";
+  overlayOpacity: number;
+  animation: "fade" | "slideLeft" | "slideRight" | "slideUp" | "zoom" | "none";
+  displayOrder: number;
+  isActive: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }

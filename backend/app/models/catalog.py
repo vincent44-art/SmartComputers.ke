@@ -106,7 +106,9 @@ class Product(TimestampMixin, db.Model):
         cascade="all, delete-orphan",
         order_by="ProductImage.position",
     )
-    reviews = db.relationship("Review", back_populates="product")
+    reviews = db.relationship(
+        "Review", back_populates="product", cascade="all, delete-orphan"
+    )
 
     @property
     def in_stock(self) -> bool:

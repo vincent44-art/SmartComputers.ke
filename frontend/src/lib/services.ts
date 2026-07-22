@@ -10,6 +10,8 @@ import type {
   Category,
   Coupon,
   Facets,
+  HeroBanner,
+  HomePageData,
   Order,
   Paginated,
   Product,
@@ -71,6 +73,11 @@ export async function fetchFacets(): Promise<Facets> {
 
 export async function fetchCategories(): Promise<Category[]> {
   const { data } = await api.get<Category[]>("/api/categories");
+  return data;
+}
+
+export async function fetchHomePage(): Promise<HomePageData> {
+  const { data } = await api.get<HomePageData>("/api/products/home");
   return data;
 }
 
@@ -386,4 +393,69 @@ export async function createAdminCoupon(payload: {
 
 export async function deleteAdminCoupon(id: number): Promise<void> {
   await api.delete(`/api/admin/coupons/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Hero Banners
+// ---------------------------------------------------------------------------
+export async function fetchHeroBanners(): Promise<HeroBanner[]> {
+  const { data } = await api.get<HeroBanner[]>("/api/hero-banners");
+  return data;
+}
+
+export async function fetchAdminHeroBanners(): Promise<HeroBanner[]> {
+  const { data } = await api.get<HeroBanner[]>("/api/admin/hero-banners");
+  return data;
+}
+
+export interface HeroBannerInput {
+  title: string;
+  subtitle?: string | null;
+  badge?: string | null;
+  desktopImage?: string | null;
+  mobileImage?: string | null;
+  primaryText?: string | null;
+  primaryUrl?: string | null;
+  secondaryText?: string | null;
+  secondaryUrl?: string | null;
+  layout?: string;
+  overlayOpacity?: number;
+  animation?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export async function createHeroBanner(payload: HeroBannerInput): Promise<HeroBanner> {
+  const { data } = await api.post<HeroBanner>("/api/admin/hero-banners", payload);
+  return data;
+}
+
+export async function updateHeroBanner(
+  id: number,
+  payload: Partial<HeroBannerInput>
+): Promise<HeroBanner> {
+  const { data } = await api.patch<HeroBanner>(
+    `/api/admin/hero-banners/${id}`,
+    payload
+  );
+  return data;
+}
+
+export async function deleteHeroBanner(id: number): Promise<void> {
+  await api.delete(`/api/admin/hero-banners/${id}`);
+}
+
+export async function duplicateHeroBanner(id: number): Promise<HeroBanner> {
+  const { data } = await api.post<HeroBanner>(
+    `/api/admin/hero-banners/${id}/duplicate`
+  );
+  return data;
+}
+
+export async function reorderHeroBanners(
+  order: { id: number; displayOrder: number }[]
+): Promise<void> {
+  await api.patch("/api/admin/hero-banners/reorder", { order });
 }

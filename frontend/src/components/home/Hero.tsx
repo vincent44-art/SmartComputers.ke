@@ -1,318 +1,171 @@
 "use client";
 
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import React, { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FiChevronLeft, FiChevronRight, FiArrowRight } from "react-icons/fi";
 
+import { HERO_IMAGE_URLS } from "@/components/home/heroImages";
+import { fetchHeroBanners } from "@/lib/services";
+import type { HeroBanner } from "@/lib/types";
 
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+interface MobileHeroLayoutProps {
+  imageSrc: string;
+  badge: string | null;
+  title: string;
+  subtitle: string | null;
+  primaryText: string | null;
+  primaryUrl: string | null;
+  secondaryText: string | null;
+  secondaryUrl: string | null;
 }
 
-type FloatProps = {
-  delay: number;
-  duration: number;
-  yBase?: number;
-};
-
-function FloatWrap({ delay, duration, yBase = 0, children }: React.PropsWithChildren<FloatProps>) {
-  return (
-    <motion.div
-      style={{ y: yBase }}
-      initial={{ y: 0 }}
-      animate={{ y: [0, -10, 0, 10, 0] }}
-      transition={{
-        delay,
-        duration,
-        ease: "easeInOut",
-        repeat: Infinity,
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+interface DesktopSplitContentProps extends MobileHeroLayoutProps {
+  layout: "left" | "center" | "right";
+  slideFromRight: boolean;
 }
 
-function ProductFrame({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
+interface HeroSlideProps {
+  banner: HeroBanner | undefined;
+  isActive: boolean;
+}
+
+const staggerContainer = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.15 } } };
+const fadeInUp = { hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } } };
+const fadeIn = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.5 } } };
+const slideInRight = { hidden: { opacity: 0, x: 80 }, show: { opacity: 1, x: 0, transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] } } };
+
+function MobileHeroLayout({ imageSrc, badge, title, subtitle, primaryText, primaryUrl, secondaryText, secondaryUrl }: MobileHeroLayoutProps) {
   return (
-    <div
-      className={
-        "relative rounded-3xl bg-gradient-to-b from-white/85 to-white/35 ring-1 ring-black/5 backdrop-blur-xl " +
-        className
-      }
-    >
-      {children}
+    <div className="relative h-[420px] w-full overflow-hidden lg:hidden">
+      <img src={imageSrc} alt={title} className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-black/20" />
+      <div className="relative z-10 flex h-full flex-col justify-end px-6 pb-10 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }} className="space-y-3">
+          {badge && <span className="mb-2 inline-block rounded-full bg-white/15 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white backdrop-blur-md ring-1 ring-white/20">{badge}</span>}
+          <h2 className="text-[32px] font-black leading-tight text-white sm:text-[36px]">{title}</h2>
+          {subtitle && <p className="mx-auto max-w-xs text-[16px] leading-relaxed text-white/80 sm:text-[18px]">{subtitle}</p>}
+          <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            {primaryText && <Link href={primaryUrl || "/"} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 shadow-lg transition active:scale-[0.97] sm:w-auto">{primaryText}</Link>}
+            {secondaryText && <Link href={secondaryUrl || "/"} className="inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-white/40 px-8 py-3 text-sm font-semibold text-white transition active:scale-[0.97] sm:w-auto">{secondaryText}</Link>}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }
 
-export function Hero() {
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-
-  const sx = useSpring(mx, { stiffness: 120, damping: 20, mass: 0.6 });
-  const sy = useSpring(my, { stiffness: 120, damping: 20, mass: 0.6 });
-
-  const laptopTX = useTransform(sx, (v) => v * 0.8);
-  const laptopTY = useTransform(sy, (v) => v * 0.55);
-
-  const phoneTX = useTransform(sx, (v) => v * 2.4);
-  const phoneTY = useTransform(sy, (v) => v * 1.5);
-
-  const watchTX = useTransform(sx, (v) => v * 1.7);
-  const watchTY = useTransform(sy, (v) => v * 1.1);
-
-  const bgTX = useTransform(sx, (v) => v * 0.5);
-  const bgTY = useTransform(sy, (v) => v * 0.35);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const x = (e.clientX / w - 0.5) * 2; // -1..1
-      const y = (e.clientY / h - 0.5) * 2; // -1..1
-      mx.set(clamp(x, -1, 1));
-      my.set(clamp(y, -1, 1));
-    };
-
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [mx, my]);
-
+function DesktopSplitContent({ badge, title, subtitle, primaryText, primaryUrl, secondaryText, secondaryUrl, imageSrc, layout, slideFromRight }: DesktopSplitContentProps) {
+  const imgVariants = slideFromRight ? slideInRight : fadeIn;
+  const lc: Record<string, string> = { left: "items-start text-left", center: "items-center text-center", right: "items-end text-right" };
   return (
-    <section className="relative isolate overflow-hidden bg-white" style={{ height: "100vh" }}>
-      {/* Background */}
-      <motion.div
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{ translateX: bgTX, translateY: bgTY }}
-      >
-        <div className="absolute left-[-8%] top-[-20%] h-[520px] w-[520px] rounded-full bg-purple-500/25 blur-3xl" />
-        <div className="absolute right-[-12%] top-[-10%] h-[480px] w-[480px] rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,rgba(124,58,237,0.18)_0%,rgba(255,255,255,0)_55%),radial-gradient(60%_40%_at_10%_30%,rgba(99,102,241,0.12)_0%,rgba(255,255,255,0)_60%)]" />
-
-        {/* tiny particles */}
-        <div className="absolute inset-0 opacity-70">
-          {Array.from({ length: 26 }).map((_, i) => {
-            const left = (i * 37) % 100;
-            const top = (i * 19) % 100;
-            const size = 1 + (i % 3);
-            const delay = (i % 7) * 0.25;
-            return (
-              <motion.span
-                key={i}
-                className="absolute rounded-full bg-purple-400/60"
-                style={{ left: `${left}%`, top: `${top}%`, width: `${size}px`, height: `${size}px` }}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: [0.05, 0.35, 0.1], y: [0, -6, 0] }}
-                transition={{ duration: 6 + (i % 4), delay, ease: "easeInOut", repeat: Infinity }}
-              />
-            );
-          })}
-        </div>
-
-        {/* subtle grid texture */}
-        <div className="absolute inset-0 opacity-[0.045] [background-image:linear-gradient(to_right,rgba(99,102,241,0.35)_1px,transparent_1px),linear-gradient(to_bottom,rgba(99,102,241,0.35)_1px,transparent_1px)] [background-size:72px_72px]" />
-
-        {/* translucent blobs behind products */}
-        <div className="absolute left-[28%] top-[55%] h-[220px] w-[220px] rounded-full bg-purple-500/15 blur-2xl" />
-        <div className="absolute left-[58%] top-[40%] h-[200px] w-[200px] rounded-full bg-indigo-500/12 blur-2xl" />
-      </motion.div>
-
-      <div className="container-page relative z-10 h-full">
-        <div className="grid h-full grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-8">
-          {/* Left 40% */}
-          <div className="lg:col-span-5">
-            <div className="max-w-xl">
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary ring-1 ring-primary/15 backdrop-blur-xl">
-                  <span className="text-base">⚡</span>
-                  NEXT-GEN COMPUTERS
-                </div>
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05, duration: 0.7, ease: "easeOut" }}
-                className="mt-8 text-[72px] font-black leading-[0.95] tracking-tight text-secondary lg:text-[84px]"
-              >
-                TECH THAT
-                <br />
-                <span className="block">
-                  <span className="bg-gradient-to-r from-purple-500 via-fuchsia-500 to-indigo-500 bg-clip-text text-transparent">
-                    EMPOWERS
-                  </span>
-                </span>
-                <br />
-                EVERYDAY
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12, duration: 0.6 }}
-                className="mt-6 text-lg leading-relaxed text-slate-600 lg:text-xl"
-              >
-                Premium-grade devices, engineered for speed and designed for presence. From laptops to audio—built to
-                elevate everyday work and play.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.18, duration: 0.6 }}
-                className="mt-10 flex flex-col gap-4 sm:flex-row"
-              >
-                <Link href="/category/laptops" className="btn-primary inline-flex">
-                  Shop Now
-                </Link>
-                <Link href="/search" className="btn-outline inline-flex">
-                  Explore Collection
-                </Link>
-              </motion.div>
-
-              {/* Micro hover animation cards (very subtle) */}
-              <div className="mt-10 hidden items-center gap-6 sm:flex">
-                <div className="rounded-2xl bg-white/70 px-4 py-3 shadow-soft ring-1 ring-black/5 backdrop-blur-xl">
-                  <div className="text-sm font-semibold text-secondary">Fast dispatch</div>
-                  <div className="text-xs text-slate-500">Up to 24h</div>
-                </div>
-                <div className="rounded-2xl bg-white/70 px-4 py-3 shadow-soft ring-1 ring-black/5 backdrop-blur-xl">
-                  <div className="text-sm font-semibold text-secondary">Genuine warranty</div>
-                  <div className="text-xs text-slate-500">Verified products</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right 60% */}
-          <div className="lg:col-span-7">
-            <div className="relative h-[560px] w-full max-w-2xl lg:h-[640px] lg:max-w-3xl">
-              {/* Background lighting reflection */}
-              <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -left-10 -top-10 h-[220px] w-[220px] rounded-full bg-white/55 blur-3xl opacity-50" />
-              </div>
-
-              {/* suspended stage */}
-              <div className="absolute inset-0">
-                {/* laptop */}
-                <motion.div
-                  style={{ translateX: laptopTX, translateY: laptopTY }}
-                  className="absolute left-[16%] top-[20%]"
-                >
-                  <FloatWrap delay={0.2} duration={8.5}>
-                    {/* Soft shadow */}
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.6 }}
-                      className="absolute left-1/2 top-full h-10 w-[360px] -translate-x-1/2 -translate-y-2 rounded-full bg-black/10 blur-3xl"
-                    />
-
-                    <div
-                      className="relative"
-                      style={{
-                        transformStyle: "preserve-3d",
-                        transform: "rotateX(8deg) rotateY(-20deg) rotateZ(-4deg)",
-                      }}
-                    >
-                      {/* base */}
-                      <ProductFrame className="h-[74px] w-[420px] rounded-3xl px-6 py-4 shadow-soft-lg" >
-                        <div className="flex h-full items-center justify-between">
-                          <div className="h-2 w-20 rounded-full bg-gradient-to-r from-purple-500/40 via-indigo-500/40 to-fuchsia-500/30 blur-[0.5px]" />
-                          <div className="h-3 w-10 rounded-lg bg-black/5" />
-                        </div>
-                      </ProductFrame>
-
-                      {/* screen */}
-                      <div
-                        className="absolute left-0 top-[-150px] w-[420px] rounded-[28px] ring-1 ring-black/5 shadow-soft-lg"
-                        style={{
-                          transform: "translateZ(40px) rotateX(-10deg) rotateY(0deg) rotateZ(0deg)",
-                        }}
-                      >
-                        <motion.div
-                          className="h-[170px] w-full rounded-[28px] bg-gradient-to-br from-slate-50/90 via-white/80 to-indigo-50/40 backdrop-blur-xl overflow-hidden"
-                          style={{
-                            transformOrigin: "left bottom",
-                            transform: "rotateX(110deg)",
-                          }}
-                        >
-                          {/* screen content (removed hero images) */}
-                          <div className="flex h-full w-full items-center justify-center">
-                            <div className="h-[110px] w-[240px] rounded-2xl bg-white/60 ring-1 ring-black/5" />
-                          </div>
-                        </motion.div>
-                        <div className="absolute bottom-[-2px] left-1/2 h-[24px] w-[330px] -translate-x-1/2 rounded-full bg-black/5 blur-2xl opacity-70" />
-                      </div>
-
-
-                      {/* bezels */}
-                      <div className="pointer-events-none absolute left-7 top-[-26px] h-[12px] w-[190px] rounded-full bg-black/5 opacity-60" />
-                    </div>
-                  </FloatWrap>
-                </motion.div>
-
-                {/* headphones (using real headset photo as the hero placeholder) */}
-                <motion.div className="absolute left-[26%] top-[6%]" style={{ translateX: laptopTX, translateY: laptopTY }}>
-                  <FloatWrap delay={1.0} duration={9.2}>
-                    <motion.div className="absolute left-1/2 top-full h-7 w-[240px] -translate-x-1/2 -translate-y-2 rounded-full bg-black/10 blur-3xl" />
-                    <div className="relative h-[180px] w-[360px]">
-                      <div className="absolute inset-0 rounded-[28px] bg-gradient-to-r from-purple-500/10 via-transparent to-indigo-500/10" />
-                      {/* hero image removed */}
-                      <div className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-white/60 ring-1 ring-black/5" />
-
-                    </div>
-                  </FloatWrap>
-                </motion.div>
-
-
-
-              </div>
-            </div>
-
-
-            {/* Parallax hint overlay (very subtle) */}
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute left-[30%] top-[18%] h-[240px] w-[240px] rounded-full bg-purple-500/10 blur-3xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile stacking (ensure no overlap) */}
-        <div className="mt-10 lg:hidden">
-          {/* Keep composition present below; browser already stacks due to grid-cols-1 */}
-        </div>
+    <div className="relative min-h-[calc(100vh-80px)]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-20 -top-20 h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-20 h-[550px] w-[550px] rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute left-1/3 top-1/4 h-[300px] w-[300px] rounded-full bg-purple-500/8 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
       </div>
+      <div className="container-page relative z-10 grid min-h-[calc(100vh-80px)] grid-cols-2 items-center gap-12">
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className={"flex flex-col justify-center " + (lc[layout] || "items-start text-left")}>
+          {badge && <motion.div variants={fadeInUp} className={layout === "center" ? "mx-auto" : ""}><span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/10 to-indigo-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-primary ring-1 ring-primary/20 backdrop-blur-xl"><span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />{badge}</span></motion.div>}
+          <motion.h2 variants={fadeInUp} className={"mt-6 text-6xl font-black leading-[1.05] tracking-tight xl:text-[68px] " + (layout === "center" ? "mx-auto" : "")}><span className="text-secondary">{title}</span></motion.h2>
+          {subtitle && <motion.p variants={fadeInUp} className={"mt-4 max-w-md text-lg leading-relaxed text-slate-500 xl:text-xl " + (layout === "center" ? "mx-auto" : "")}>{subtitle}</motion.p>}
+          <motion.div variants={fadeInUp} className={"mt-8 flex flex-wrap items-center gap-4 " + (layout === "center" ? "justify-center " : "") + (layout === "right" ? "justify-end" : "")}>
+            {primaryText && <Link href={primaryUrl || "/"} className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-indigo-600 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-primary/25 transition-all hover:shadow-primary/40 hover:brightness-110 active:scale-[0.97]">{primaryText}<FiArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></Link>}
+            {secondaryText && <Link href={secondaryUrl || "/"} className="inline-flex items-center gap-2 rounded-full border border-slate-300/80 bg-white/60 px-7 py-3.5 text-sm font-semibold text-secondary backdrop-blur-sm transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.97]">{secondaryText}</Link>}
+          </motion.div>
+        </motion.div>
+        <motion.div variants={imgVariants} initial="hidden" animate="show" className="relative flex items-center justify-center">
+          <div className="absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary/20 via-indigo-500/15 to-purple-500/20 blur-2xl" />
+          <div className="group relative w-full max-w-lg animate-float">
+            <div className="absolute -inset-2 rounded-[28px] bg-gradient-to-br from-primary/20 via-indigo-500/15 to-purple-500/20 opacity-60 blur-sm transition duration-500 group-hover:opacity-100" />
+            <div className="relative overflow-hidden rounded-[24px] border border-white/60 bg-white/70 p-3 shadow-soft-lg backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/70">
+              <img src={imageSrc} alt={title} className="h-auto w-full rounded-[16px] object-cover transition duration-700 group-hover:scale-[1.02]" />
+              <div className="pointer-events-none absolute inset-0 rounded-[16px] bg-gradient-to-t from-white/30 via-transparent to-transparent" />
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
 
-      {/* Ensure buttons have premium glow on hover via motion */}
-      <style jsx global>{`
-        .btn-primary, .btn-outline {
-          position: relative;
-          overflow: hidden;
-        }
-        .btn-primary::after, .btn-outline::after {
-          content: "";
-          position: absolute;
-          inset: -2px;
-          background: radial-gradient(120px 60px at 30% 20%, rgba(168,85,247,0.28), rgba(59,130,246,0) 60%),
-                      radial-gradient(140px 70px at 70% 30%, rgba(236,72,153,0.22), rgba(59,130,246,0) 62%);
-          opacity: 0;
-          transition: opacity 220ms ease;
-          pointer-events: none;
-        }
-        .btn-primary:hover::after, .btn-outline:hover::after {
-          opacity: 1;
-        }
-      `}</style>
+function DefaultHero() {
+  return (
+    <section className="relative isolate overflow-hidden bg-white">
+      <MobileHeroLayout imageSrc={HERO_IMAGE_URLS.macbook} badge="Next-Gen Computers" title="Tech That Empowers Everyday" subtitle="Premium-grade devices, engineered for speed and designed for presence. From laptops to audio — built to elevate everyday work and play." primaryText="Shop Now" primaryUrl="/category/laptops" secondaryText="Explore Collection" secondaryUrl="/search" />
+      <div className="hidden lg:block">
+        <DesktopSplitContent badge="Next-Gen Computers" title="Tech That Empowers Everyday" subtitle="Premium-grade devices, engineered for speed and designed for presence. From laptops to audio — built to elevate everyday work and play." primaryText="Shop Now" primaryUrl="/category/laptops" secondaryText="Explore Collection" secondaryUrl="/search" imageSrc={HERO_IMAGE_URLS.macbook} layout="left" slideFromRight={true} />
+      </div>
     </section>
   );
 }
 
+function HeroSlide({ banner, isActive }: HeroSlideProps) {
+  if (!banner) return null;
+  const imageSrc = banner.desktopImage || HERO_IMAGE_URLS.macbook;
+  const slideRt = banner.animation === "slideRight" || banner.animation === "fade" || banner.animation === "none";
+  return (
+    <AnimatePresence mode="wait">
+      {isActive && (
+        <motion.div key={banner.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="absolute inset-0">
+          <div className="lg:hidden"><MobileHeroLayout imageSrc={imageSrc} badge={banner.badge} title={banner.title} subtitle={banner.subtitle} primaryText={banner.primaryText} primaryUrl={banner.primaryUrl} secondaryText={banner.secondaryText} secondaryUrl={banner.secondaryUrl} /></div>
+          <div className="hidden lg:block"><DesktopSplitContent badge={banner.badge} title={banner.title} subtitle={banner.subtitle} primaryText={banner.primaryText} primaryUrl={banner.primaryUrl} secondaryText={banner.secondaryText} secondaryUrl={banner.secondaryUrl} imageSrc={imageSrc} layout={banner.layout} slideFromRight={slideRt} /></div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export function Hero() {
+  const { data: banners, isLoading } = useQuery({ queryKey: ["hero-banners"], queryFn: fetchHeroBanners, refetchOnMount: true, refetchOnWindowFocus: true });
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeBanners = banners ?? [];
+
+  const goTo = useCallback((index: number) => {
+    if (activeBanners.length === 0) return;
+    const total = activeBanners.length;
+    setCurrentIndex(((index % total) + total) % total);
+  }, [activeBanners.length]);
+
+  const goNext = useCallback(() => goTo(currentIndex + 1), [currentIndex, goTo]);
+  const goPrev = useCallback(() => goTo(currentIndex - 1), [currentIndex, goTo]);
+
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const duration = 5000 + Math.random() * 2000;
+    intervalRef.current = setInterval(goNext, duration);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [activeBanners.length, goNext]);
+
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const hTS = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const hTM = (e: React.TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
+  const hTE = () => { const d = touchStartX.current - touchEndX.current; if (Math.abs(d) > 50) { if (d > 0) goNext(); else goPrev(); } };
+
+  // Show static default hero while API data is loading or when there are no banners
+  if (isLoading || activeBanners.length === 0) {
+    return <DefaultHero />;
+  }
+
+  const currentBanner = activeBanners[currentIndex];
+
+  return (
+    <section className="relative isolate overflow-hidden bg-white" onTouchStart={hTS} onTouchMove={hTM} onTouchEnd={hTE}>
+      <div className="relative w-full"><HeroSlide banner={currentBanner} isActive={true} /></div>
+      {activeBanners.length > 1 && <>
+        <button onClick={goPrev} className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-slate-200/80 bg-white/70 p-3 text-slate-700 shadow-soft backdrop-blur-md transition hover:bg-white hover:shadow-glow active:scale-[0.95]" aria-label="Previous slide"><FiChevronLeft className="h-5 w-5" /></button>
+        <button onClick={goNext} className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-slate-200/80 bg-white/70 p-3 text-slate-700 shadow-soft backdrop-blur-md transition hover:bg-white hover:shadow-glow active:scale-[0.95]" aria-label="Next slide"><FiChevronRight className="h-5 w-5" /></button>
+      </>}
+      {activeBanners.length > 1 && (
+        <div className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+          {activeBanners.map((_, i) => <button key={i} onClick={() => goTo(i)} className={"h-2.5 rounded-full transition-all " + (i === currentIndex ? "w-8 bg-primary" : "w-2.5 bg-slate-300 hover:bg-slate-400")} aria-label={"Go to slide " + (i + 1)} />)}
+        </div>
+      )}
+    </section>
+  );
+}

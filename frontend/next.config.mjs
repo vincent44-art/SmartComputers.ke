@@ -3,12 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
     remotePatterns: [
-      { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
-      // Allow Cloudinary/other image hosts used by uploaded product media.
-      { protocol: "https", hostname: "share.google" },
+      { protocol: "https", hostname: "picsum.photos" },
     ],
   },
 

@@ -1,5 +1,6 @@
 """SQLAlchemy models for the SmartComputers.ke domain."""
 from .base import TimestampMixin
+from .banner import HeroBanner
 from .blog import (
     BlogCategory,
     BlogComment,
@@ -15,6 +16,7 @@ from .user import Address, User
 
 __all__ = [
     "TimestampMixin",
+    "HeroBanner",
     "User",
     "Address",
     "Category",

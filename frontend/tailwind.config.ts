@@ -50,10 +50,30 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(12px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-12px)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(30px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-right": {
+          "0%": { opacity: "0", transform: "translateX(80px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
       },
       animation: {
         shimmer: "shimmer 1.6s infinite",
         "fade-up": "fade-up 0.5s ease-out both",
+        float: "float 6s ease-in-out infinite",
+        "fade-in-up": "fade-in-up 0.7s ease-out both",
+        "slide-in-right": "slide-in-right 0.7s ease-out both",
+        "fade-in": "fade-in 0.5s ease-out both",
       },
       backdropBlur: {
         xs: "2px",

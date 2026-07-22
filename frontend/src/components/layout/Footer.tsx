@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   FaFacebookF,
   FaInstagram,
-  FaXTwitter,
+  FaTiktok,
   FaWhatsapp,
 } from "react-icons/fa6";
 
@@ -61,16 +61,42 @@ export function Footer() {
 
           <div className="mt-6 grid gap-4">
             <div className="flex gap-3">
-              {[FaFacebookF, FaXTwitter, FaInstagram, FaWhatsapp].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-secondary transition hover:bg-primary hover:text-white dark:bg-slate-800 dark:text-slate-200"
-                  aria-label="Social link"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
+              <a
+                href="https://www.facebook.com/share/19PxvhkEw9/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-secondary transition hover:bg-primary hover:text-white dark:bg-slate-800 dark:text-slate-200"
+                aria-label="Facebook"
+              >
+                <FaFacebookF className="h-4 w-4" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@smartcomputerske?_r=1&_t=ZS-98DJG5hmbpN"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-secondary transition hover:bg-primary hover:text-white dark:bg-slate-800 dark:text-slate-200"
+                aria-label="TikTok"
+              >
+                <FaTiktok className="h-4 w-4" />
+              </a>
+              <a
+                href="https://www.instagram.com/smartcomputerske_technologies?igsh=MTY0NmZ1eHp4dG5xZg=="
+                target="_blank"
+                rel="noopener noreferrer"
+                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-secondary transition hover:bg-primary hover:text-white dark:bg-slate-800 dark:text-slate-200"
+                aria-label="Instagram"
+              >
+                <FaInstagram className="h-4 w-4" />
+              </a>
+              <a
+                href="https://wa.me/254700000000"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-secondary transition hover:bg-primary hover:text-white dark:bg-slate-800 dark:text-slate-200"
+                aria-label="WhatsApp"
+              >
+                <FaWhatsapp className="h-4 w-4" />
+              </a>
             </div>
 
 
@@ -81,7 +107,15 @@ export function Footer() {
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Rahimtulla Trust Building, Nairobi, Kenya
               </p>
-              <div className="mt-3 overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-800">
+              <a
+                href="https://share.google/RLowO2dmPO4QW3xys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs font-medium text-primary transition hover:text-primary/80"
+              >
+                Open in Google Maps →
+              </a>
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-800">
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d641.9272748224215!2d36.81895387755239!3d-1.2778891003080493!2m3!1f0!2f0!3f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d455bedc39%3A0xc82ecc0d6a95e269!2sRahimtulla%20Trust%20Building!5e0!3m2!1sen!2ske!4v1784138539327!5m2!1sen!2ske"
                   width="100%"

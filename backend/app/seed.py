@@ -302,8 +302,12 @@ REVIEW_SNIPPETS = [
 
 
 def _placeholder_image(name: str, index: int) -> str:
-    seed = slugify(name)
-    return f"https://picsum.photos/seed/{seed}-{index}/900/700"
+    """Return a local placeholder image URL — no external network calls needed."""
+    text = name[:40]
+    # Alternate background colours per index so each product variant looks distinct.
+    bg_colors = ["#E2E8F0", "#DBEAFE", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3E8FF"]
+    bg = bg_colors[index % len(bg_colors)]
+    return f"/api/placeholder/900/700?text={text}&bg={bg}"
 
 
 def seed_database() -> None:

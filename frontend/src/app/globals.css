@@ -36,6 +36,9 @@
   .glass {
     @apply border border-white/55 bg-white/60 backdrop-blur-xl shadow-soft dark:border-white/10 dark:bg-slate-900/55;
   }
+  .glass-strong {
+    @apply border border-white/50 bg-white/80 backdrop-blur-2xl shadow-soft-lg dark:border-white/15 dark:bg-slate-900/80;
+  }
 
 
   .card {

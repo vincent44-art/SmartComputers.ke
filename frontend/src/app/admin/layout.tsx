@@ -7,6 +7,7 @@ import {
   FiBox,
   FiGrid,
   FiHome,
+  FiImage,
   FiLogOut,
   FiShoppingBag,
   FiTag,
@@ -21,9 +22,10 @@ import { useAuthStore } from "@/store/useAuthStore";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: FiGrid },
-  { href: "/admin/products", label: "Products", icon: FiBox },
   { href: "/admin/orders", label: "Orders", icon: FiShoppingBag },
   { href: "/admin/customers", label: "Customers", icon: FiUsers },
+  { href: "/admin/products", label: "Products", icon: FiBox },
+  { href: "/admin/hero-banners", label: "Hero Banners", icon: FiImage },
   { href: "/admin/coupons", label: "Coupons", icon: FiTag },
 ];
 
