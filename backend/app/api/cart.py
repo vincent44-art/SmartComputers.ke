@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from ..extensions import db
-from ..models import CartItem, Product
+from ..models import CartItem, Product, ProductVariant
 from ..utils.auth import current_user
 from ..utils.errors import NotFoundError, ValidationError
 
@@ -44,11 +44,23 @@ def _serialize_cart(items: list[CartItem], currency: str = "KES") -> dict:
     for i in items:
         if not i.product:
             continue
-        line_total = float(i.product.price) * i.quantity
+
+        # Use variant price if present, otherwise base product price
+        unit_price = float(i.variant.price) if i.variant else float(i.product.price)
+        line_total = unit_price * i.quantity
         subtotal += line_total
 
         item_dict = i.to_dict()
-        # Convert line price if present
+
+        # Apply currency conversion to unit price and line total
+        converted_unit = convert_amount(unit_price, requested_currency)
+        converted_line = convert_amount(line_total, requested_currency)
+
+        if converted_unit is not None:
+            item_dict["unitPrice"] = converted_unit
+        if converted_line is not None:
+            item_dict["lineTotal"] = converted_line
+
         if item_dict.get("product") and "price" in item_dict["product"]:
             converted = convert_amount(
                 float(item_dict["product"]["price"]), requested_currency
@@ -56,14 +68,6 @@ def _serialize_cart(items: list[CartItem], currency: str = "KES") -> dict:
             if converted is not None:
                 item_dict["product"]["price"] = converted
                 item_dict["product"]["currency"] = requested_currency
-        if "lineTotal" in item_dict:
-            converted_total = convert_amount(
-                float(item_dict["lineTotal"]), requested_currency
-            )
-            if converted_total is not None:
-                item_dict["lineTotal"] = converted_total
-                item_dict["currency"] = requested_currency
-
 
         serialized_items.append(item_dict)
 
@@ -102,6 +106,7 @@ def get_cart():
 def add_item():
     data = request.get_json(silent=True) or {}
     product_id = data.get("productId")
+    variant_id = data.get("variantId")
     quantity = int(data.get("quantity") or 1)
 
     product = Product.query.get(product_id) if product_id else None
@@ -110,13 +115,42 @@ def add_item():
     if quantity < 1:
         raise ValidationError("Quantity must be at least 1")
 
-    item = CartItem.query.filter(
-        _owner_filter(), CartItem.product_id == product.id
-    ).first()
+    # Validate variant if provided
+    variant = None
+    if variant_id:
+        variant = ProductVariant.query.get(variant_id)
+        if not variant or variant.product_id != product.id or not variant.is_active:
+            raise NotFoundError("Variant not found or inactive")
+        if variant.stock < 1:
+            raise ValidationError("Selected variant is out of stock")
+
+    # Look for existing cart item with same product AND variant
+    existing_filter = _owner_filter()
+    if variant:
+        item = CartItem.query.filter(
+            existing_filter,
+            CartItem.product_id == product.id,
+            CartItem.variant_id == variant_id,
+        ).first()
+    else:
+        item = CartItem.query.filter(
+            existing_filter,
+            CartItem.product_id == product.id,
+            CartItem.variant_id.is_(None),
+        ).first()
+
     if item:
         item.quantity += quantity
     else:
-        item = CartItem(product_id=product.id, quantity=quantity, **_owner_kwargs())
+        item_kwargs = {
+            "product_id": product.id,
+            "quantity": quantity,
+            **_owner_kwargs(),
+        }
+        if variant:
+            item_kwargs["variant_id"] = variant.id
+            item_kwargs["variant_data"] = variant.attributes
+        item = CartItem(**item_kwargs)
         db.session.add(item)
     db.session.commit()
 
@@ -136,6 +170,42 @@ def update_item(item_id: int):
         db.session.delete(item)
     else:
         item.quantity = quantity
+    db.session.commit()
+    items = CartItem.query.filter(_owner_filter()).all()
+    return jsonify(_serialize_cart(items)), 200
+
+
+@cart_bp.patch("/items/<int:item_id>/variant")
+@jwt_required(optional=True)
+def change_item_variant(item_id: int):
+    """Change the variant selected on a cart item.
+
+    Request body::
+
+        { "variantId": 42 }
+
+    Recalculates line total using the new variant price.
+    """
+    data = request.get_json(silent=True) or {}
+    variant_id = data.get("variantId")
+
+    item = CartItem.query.filter(_owner_filter(), CartItem.id == item_id).first()
+    if not item:
+        raise NotFoundError("Cart item not found")
+
+    if variant_id is None:
+        # Clear variant — revert to base product pricing
+        item.variant_id = None
+        item.variant_data = None
+    else:
+        variant = ProductVariant.query.get(variant_id)
+        if not variant or not variant.is_active:
+            raise NotFoundError("Variant not found or inactive")
+        if variant.product_id != item.product_id:
+            raise ValidationError("Variant does not belong to this product")
+        item.variant_id = variant.id
+        item.variant_data = variant.attributes
+
     db.session.commit()
     items = CartItem.query.filter(_owner_filter()).all()
     return jsonify(_serialize_cart(items)), 200

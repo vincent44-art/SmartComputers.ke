@@ -196,6 +196,11 @@ export default function CheckoutPage() {
               <div key={line.id} className="flex justify-between text-sm">
                 <span className="text-slate-600 dark:text-slate-300">
                   {line.product?.name} × {line.quantity}
+                  {line.variantData && Object.keys(line.variantData).length > 0 && (
+                    <span className="ml-1 text-xs text-slate-400">
+                      ({Object.values(line.variantData).filter(Boolean).join(", ")})
+                    </span>
+                  )}
                 </span>
                 <span className="font-medium">{formatCurrency(line.lineTotal, currency)}</span>
               </div>

@@ -1,16 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
-import { FiMinus, FiPlus, FiShoppingBag, FiTrash2, FiX } from "react-icons/fi";
+import { FiShoppingBag, FiX } from "react-icons/fi";
 
 import { formatCurrency } from "@/lib/format";
 import { useCartStore } from "@/store/useCartStore";
 import { useCurrencyStore } from "@/store/useCurrencyStore";
+import { CartItemCard } from "./CartItemCard";
 
 export function CartDrawer() {
-  const { cart, drawerOpen, setDrawer, update, remove } = useCartStore();
+  const { cart, drawerOpen, setDrawer } = useCartStore();
   const currency = useCurrencyStore((s) => s.currency);
 
   return (
@@ -61,60 +61,9 @@ export function CartDrawer() {
               </div>
             ) : (
               <>
-                <div className="flex-1 space-y-4 overflow-y-auto p-5">
+                <div className="flex-1 space-y-3 overflow-y-auto p-5">
                   {cart.items.map((line) => (
-                    <div key={line.id} className="flex gap-3">
-                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-                        {line.product?.thumbnail && (
-                          <Image
-                            src={line.product.thumbnail}
-                            alt={line.product.name}
-                            fill
-                            sizes="80px"
-                            className="object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="flex flex-1 flex-col">
-                        <p className="line-clamp-2 text-sm font-semibold text-secondary dark:text-slate-100">
-                          {line.product?.name}
-                        </p>
-                        <p className="text-sm font-bold text-primary">
-                          {formatCurrency(line.lineTotal, currency)}
-                        </p>
-                        <div className="mt-auto flex items-center gap-2">
-                          <div className="flex items-center rounded-full border border-slate-200 dark:border-slate-700">
-                            <button
-                              type="button"
-                              onClick={() => update(line.id, line.quantity - 1)}
-                              className="grid h-7 w-7 place-items-center text-slate-500 hover:text-primary"
-                              aria-label="Decrease quantity"
-                            >
-                              <FiMinus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="w-6 text-center text-sm font-semibold">
-                              {line.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => update(line.id, line.quantity + 1)}
-                              className="grid h-7 w-7 place-items-center text-slate-500 hover:text-primary"
-                              aria-label="Increase quantity"
-                            >
-                              <FiPlus className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => remove(line.id)}
-                            className="grid h-7 w-7 place-items-center text-slate-400 hover:text-danger"
-                            aria-label="Remove item"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    <CartItemCard key={line.id} line={line} compact />
                   ))}
                 </div>
 

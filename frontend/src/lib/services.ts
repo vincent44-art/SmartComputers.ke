@@ -15,6 +15,7 @@ import type {
   Order,
   Paginated,
   Product,
+  ProductVariant,
   RecommendationResponse,
   Review,
   User,
@@ -91,12 +92,12 @@ export async function fetchCart(currency?: string): Promise<Cart> {
 
 export async function addCartItem(
   productId: number,
-  quantity = 1
+  quantity = 1,
+  variantId?: number
 ): Promise<Cart> {
-  const { data } = await api.post<Cart>("/api/cart/items", {
-    productId,
-    quantity,
-  });
+  const payload: Record<string, unknown> = { productId, quantity };
+  if (variantId !== undefined) payload.variantId = variantId;
+  const { data } = await api.post<Cart>("/api/cart/items", payload);
   return data;
 }
 
@@ -117,6 +118,54 @@ export async function removeCartItem(itemId: number): Promise<Cart> {
 
 export async function clearCart(): Promise<Cart> {
   const { data } = await api.delete<Cart>("/api/cart/items");
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Product Variants
+// ---------------------------------------------------------------------------
+export async function fetchProductVariants(
+  productId: number,
+  currency?: string
+): Promise<ProductVariant[]> {
+  const { data } = await api.get<ProductVariant[]>(
+    `/api/variants/product/${productId}`,
+    { params: currency ? { currency } : undefined }
+  );
+  return data;
+}
+
+export async function fetchVariant(
+  variantId: number,
+  currency?: string
+): Promise<ProductVariant> {
+  const { data } = await api.get<ProductVariant>(`/api/variants/${variantId}`, {
+    params: currency ? { currency } : undefined,
+  });
+  return data;
+}
+
+export async function changeCartItemVariant(
+  itemId: number,
+  variantId: number
+): Promise<Cart> {
+  const { data } = await api.patch<Cart>(
+    `/api/cart/items/${itemId}/variant`,
+    { variantId }
+  );
+  return data;
+}
+
+export async function addCartItemWithVariant(
+  productId: number,
+  variantId: number,
+  quantity = 1
+): Promise<Cart> {
+  const { data } = await api.post<Cart>("/api/cart/items", {
+    productId,
+    variantId,
+    quantity,
+  });
   return data;
 }
 

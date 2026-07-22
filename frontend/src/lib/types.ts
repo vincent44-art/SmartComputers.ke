@@ -98,11 +98,35 @@ export interface Facets {
   priceRange: { min: number; max: number };
 }
 
+export interface VariantAttributes {
+  ram?: string;
+  storage?: string;
+  processor?: string;
+  color?: string;
+  [key: string]: string | undefined;
+}
+
+export interface ProductVariant {
+  id: number;
+  productId: number;
+  sku: string;
+  price: number;
+  stock: number;
+  inStock: boolean;
+  attributes: VariantAttributes;
+  imageUrl: string | null;
+  isActive: boolean;
+}
+
 export interface CartLine {
   id: number;
   productId: number;
+  variantId: number | null;
   quantity: number;
   product: Product | null;
+  variantData: VariantAttributes;
+  variantImage: string | null;
+  unitPrice: number;
   lineTotal: number;
 }
 

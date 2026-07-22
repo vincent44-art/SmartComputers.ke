@@ -12,6 +12,7 @@ from .catalog import Brand, Category, Product, ProductImage
 from .order import Order, OrderItem
 from .review import Review
 from .shopping import CartItem, Coupon, WishlistItem
+from .variant import ProductVariant
 from .user import Address, User
 
 __all__ = [
@@ -29,6 +30,7 @@ __all__ = [
     "Coupon",
     "Order",
     "OrderItem",
+    "ProductVariant",
     "BlogCategory",
     "BlogTag",
     "BlogPost",

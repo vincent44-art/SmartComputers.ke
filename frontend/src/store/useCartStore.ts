@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import {
   addCartItem,
+  changeCartItemVariant,
   fetchCart,
   removeCartItem,
   updateCartItem,
@@ -14,9 +15,10 @@ interface CartState {
   loading: boolean;
   drawerOpen: boolean;
   refresh: () => Promise<void>;
-  add: (productId: number, quantity?: number) => Promise<void>;
+  add: (productId: number, quantity?: number, variantId?: number) => Promise<void>;
   update: (itemId: number, quantity: number) => Promise<void>;
   remove: (itemId: number) => Promise<void>;
+  changeVariant: (itemId: number, variantId: number) => Promise<void>;
   setDrawer: (open: boolean) => void;
 }
 
@@ -49,8 +51,8 @@ export const useCartStore = create<CartState>((set) => ({
   // Convenience: set currency then force an immediate cart refresh.
 
 
-  add: async (productId, quantity = 1) => {
-    const cart = await addCartItem(productId, quantity);
+  add: async (productId, quantity = 1, variantId?) => {
+    const cart = await addCartItem(productId, quantity, variantId);
     set({ cart, drawerOpen: true });
   },
   update: async (itemId, quantity) => {
@@ -59,6 +61,10 @@ export const useCartStore = create<CartState>((set) => ({
   },
   remove: async (itemId) => {
     const cart = await removeCartItem(itemId);
+    set({ cart });
+  },
+  changeVariant: async (itemId, variantId) => {
+    const cart = await changeCartItemVariant(itemId, variantId);
     set({ cart });
   },
 }));

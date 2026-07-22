@@ -20,6 +20,7 @@ from .models import (
     Coupon,
     Product,
     ProductImage,
+    ProductVariant,
     Review,
     User,
 )
@@ -399,6 +400,114 @@ def seed_database() -> None:
             )
         db.session.flush()
         product.recompute_rating()
+
+    # -----------------------------------------------------------------------
+    # Seed product variants for configurable products
+    # -----------------------------------------------------------------------
+    # Variant definitions: product name → list of (attributes, price_modifier)
+    # Price modifier is added to the base product price.
+    VARIANT_DEFS = {
+        "HP EliteBook 840 G10": {
+            "ram": ["8GB", "16GB", "32GB"],
+            "storage": ["256GB SSD", "512GB SSD", "1TB SSD"],
+            "processor": ["Intel Core i5-1345U", "Intel Core i7-1365U", "Intel Core i9-1395U"],
+            "color": ["Silver", "Black", "Blue"],
+        },
+        "Dell XPS 15 Ultrabook": {
+            "ram": ["16GB", "32GB", "64GB"],
+            "storage": ["512GB SSD", "1TB SSD", "2TB SSD"],
+            "processor": ["Intel Core i7-13700H", "Intel Core i9-13900H"],
+            "color": ["Silver", "Graphite"],
+        },
+        "MacBook Pro 14 M3 Pro": {
+            "ram": ["18GB", "36GB"],
+            "storage": ["512GB SSD", "1TB SSD", "2TB SSD"],
+            "processor": ["Apple M3 Pro", "Apple M3 Max"],
+            "color": ["Silver", "Space Black"],
+        },
+        "ASUS ROG Strix G16 Gaming Laptop": {
+            "ram": ["16GB", "32GB", "64GB"],
+            "storage": ["1TB SSD", "2TB SSD"],
+            "processor": ["Intel Core i9-14900HX"],
+            "color": ["Black", "Gray"],
+        },
+        "MSI Katana 15 Gaming Laptop": {
+            "ram": ["16GB", "32GB"],
+            "storage": ["1TB SSD", "2TB SSD"],
+            "processor": ["Intel Core i7-13620H", "Intel Core i9-13900H"],
+            "color": ["Black"],
+        },
+        "MacBook Air 13 M2": {
+            "ram": ["8GB", "16GB", "24GB"],
+            "storage": ["256GB SSD", "512GB SSD", "1TB SSD"],
+            "processor": ["Apple M2"],
+            "color": ["Silver", "Space Gray", "Midnight", "Starlight"],
+        },
+    }
+
+    # Price adjustments per attribute (KES added to base price)
+    RAM_PRICES = {"8GB": 0, "16GB": 15000, "18GB": 0, "24GB": 30000, "32GB": 35000, "36GB": 20000, "64GB": 70000}
+    STORAGE_PRICES = {"256GB SSD": 0, "512GB SSD": 10000, "1TB SSD": 25000, "2TB SSD": 55000}
+    CPU_PRICES = {
+        "Intel Core i5-1345U": 0, "Intel Core i7-1365U": 25000, "Intel Core i9-1395U": 55000,
+        "Intel Core i7-13700H": 0, "Intel Core i9-13900H": 30000,
+        "Intel Core i7-13620H": 0, "Intel Core i9-13900H": 30000,
+        "Intel Core i9-14900HX": 0,
+        "Apple M2": 0, "Apple M3 Pro": 0, "Apple M3 Max": 40000,
+    }
+
+    # Create variants only for products that have definitions
+    for product in Product.query.all():
+        defs = VARIANT_DEFS.get(product.name)
+        if not defs:
+            continue
+
+        variant_index = 0
+        # Generate a subset of combinations (full cartesian could be huge)
+        # For RAM, Storage, Processor: generate all combos if manageable, else sample
+        ram_options = defs.get("ram", ["16GB"])
+        storage_options = defs.get("storage", ["512GB SSD"])
+        cpu_options = defs.get("processor", [product.processor or ""])
+        color_options = defs.get("color", ["Silver"])
+
+        # Limit combinations to a reasonable number (max ~16)
+        import itertools
+
+        all_combos = list(itertools.product(ram_options, storage_options, cpu_options, color_options))
+
+        # If too many combos, take a representative sample
+        if len(all_combos) > 20:
+            import random
+            random.seed(hash(product.name))
+            all_combos = random.sample(all_combos, 16)
+
+        for ram, storage, cpu, color in all_combos:
+            price_adj = (
+                RAM_PRICES.get(ram, 0)
+                + STORAGE_PRICES.get(storage, 0)
+                + CPU_PRICES.get(cpu, 0)
+            )
+            variant_price = max(float(product.price) + price_adj, 0)
+            variant_sku = f"{product.sku}-V{variant_index + 1}"
+
+            variant = ProductVariant(
+                product_id=product.id,
+                sku=variant_sku,
+                price=variant_price,
+                stock=5 + (variant_index % 10) * 3,
+                attributes={
+                    "ram": ram,
+                    "storage": storage,
+                    "processor": cpu,
+                    "color": color,
+                },
+                image_url=None,  # Use product image by default
+                is_active=True,
+            )
+            db.session.add(variant)
+            variant_index += 1
+
+    db.session.flush()
 
     db.session.add_all(
         [

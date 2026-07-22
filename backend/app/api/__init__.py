@@ -19,6 +19,7 @@ def register_api(app: Flask) -> None:
     from .products import products_bp
     from .recommendations import recommendations_bp
     from .reviews import reviews_bp
+    from .variants import variants_bp
     from .wishlist import wishlist_bp
 
     for bp in (
@@ -38,5 +39,6 @@ def register_api(app: Flask) -> None:
         hero_banners_bp,
         placeholder_bp,
         recommendations_bp,
+        variants_bp,
     ):
         app.register_blueprint(bp)

@@ -14,20 +14,35 @@ class CartItem(TimestampMixin, db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     session_id = db.Column(db.String(120), nullable=True, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    variant_id = db.Column(
+        db.Integer, db.ForeignKey("product_variants.id"), nullable=True
+    )
     quantity = db.Column(db.Integer, nullable=False, default=1)
+    # Snapshot of the selected variant attributes at time of selection
+    variant_data = db.Column(db.JSON, nullable=True)
 
     product = db.relationship("Product")
+    variant = db.relationship("ProductVariant")
 
     def to_dict(self) -> dict:
-        return {
+        unit_price = float(self.variant.price) if self.variant else float(self.product.price)
+        line_total = unit_price * self.quantity
+
+        result = {
             "id": self.id,
             "productId": self.product_id,
+            "variantId": self.variant_id,
             "quantity": self.quantity,
             "product": self.product.to_dict() if self.product else None,
-            "lineTotal": float(self.product.price) * self.quantity
-            if self.product
-            else 0,
+            "variantData": (self.variant.attributes if self.variant else self.variant_data) or {},
+            "variantImage": self.variant.image_url if self.variant else None,
+            "unitPrice": unit_price,
+            "lineTotal": line_total,
         }
+        # Override product price with variant price for downstream consistency
+        if result["product"] and self.variant:
+            result["product"]["price"] = unit_price
+        return result
 
 
 class WishlistItem(TimestampMixin, db.Model):

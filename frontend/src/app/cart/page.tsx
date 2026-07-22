@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { FiMinus, FiPlus, FiShoppingBag, FiTrash2 } from "react-icons/fi";
+import { FiShoppingBag } from "react-icons/fi";
 import { useState } from "react";
 
 import { formatCurrency } from "@/lib/format";
@@ -10,10 +9,11 @@ import { useCurrencyStore } from "@/store/useCurrencyStore";
 import { buildWhatsAppUrl, formatWhatsAppMoney, WHATSAPP_NUMBER_E164 } from "@/lib/whatsapp";
 import { useCartStore } from "@/store/useCartStore";
 import { CartRecommendations } from "@/components/recommendations/CartRecommendations";
+import { CartItemCard } from "@/components/cart/CartItemCard";
 
 
 export default function CartPage() {
-  const { cart, update, remove } = useCartStore();
+  const { cart } = useCartStore();
   const [showRecommendations, setShowRecommendations] = useState(true);
 
   const currency = useCurrencyStore((s) => s.currency);
@@ -51,64 +51,7 @@ export default function CartPage() {
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           {cart.items.map((line) => (
-            <div key={line.id} className="card flex gap-4 p-4">
-              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-                {line.product?.thumbnail && (
-                  <Image
-                    src={line.product.thumbnail}
-                    alt={line.product.name}
-                    fill
-                    sizes="96px"
-                    className="object-cover"
-                  />
-                )}
-              </div>
-              <div className="flex flex-1 flex-col">
-                <Link
-                  href={`/product/${line.product?.slug}`}
-                  className="font-semibold text-secondary hover:text-primary dark:text-slate-100"
-                >
-                  {line.product?.name}
-                </Link>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {formatCurrency(line.product?.price ?? 0, currency)} each
-                </p>
-                <div className="mt-auto flex items-center justify-between">
-                  <div className="flex items-center rounded-full border border-slate-200 dark:border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => update(line.id, line.quantity - 1)}
-                      className="grid h-8 w-8 place-items-center text-slate-500 hover:text-primary"
-                      aria-label="Decrease"
-                    >
-                      <FiMinus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="w-8 text-center text-sm font-semibold">
-                      {line.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => update(line.id, line.quantity + 1)}
-                      className="grid h-8 w-8 place-items-center text-slate-500 hover:text-primary"
-                      aria-label="Increase"
-                    >
-                      <FiPlus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <p className="font-bold text-secondary dark:text-white">
-                    {formatCurrency(line.lineTotal, currency)}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => remove(line.id)}
-                className="grid h-8 w-8 shrink-0 place-items-center text-slate-400 hover:text-danger"
-                aria-label="Remove"
-              >
-                <FiTrash2 className="h-4 w-4" />
-              </button>
-            </div>
+            <CartItemCard key={line.id} line={line} />
           ))}
         </div>
 
