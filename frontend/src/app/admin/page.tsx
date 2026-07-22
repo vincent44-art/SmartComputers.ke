@@ -20,7 +20,7 @@ export default function AdminDashboardPage() {
 
   const maxRevenue = Math.max(
     1,
-    ...(data?.revenueSeries.map((d) => d.revenue) ?? [1])
+    ...(data?.revenueSeries7d.map((d) => d.revenue) ?? [1])
   );
 
   const cards = [
@@ -85,7 +85,7 @@ export default function AdminDashboardPage() {
             Revenue (last 7 days)
           </h2>
           <div className="mt-6 flex h-48 items-end gap-2">
-            {(data?.revenueSeries ?? []).map((d) => (
+            {(data?.revenueSeries7d ?? []).map((d) => (
               <div key={d.date} className="flex flex-1 flex-col items-center gap-2">
                 <div
                   className="w-full rounded-t-lg bg-primary/80 transition-all"
@@ -137,13 +137,13 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {data && data.lowStock.length > 0 && (
+      {data && data.lowStockProducts.length > 0 && (
         <div className="card mt-6 p-5">
           <h2 className="font-semibold text-secondary dark:text-white">
             Low stock alerts
           </h2>
           <div className="mt-4 space-y-2">
-            {data.lowStock.map((p) => (
+            {data.lowStockProducts.map((p) => (
               <div
                 key={p.id}
                 className="flex items-center justify-between text-sm"

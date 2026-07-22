@@ -22,9 +22,13 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      const { role } = await login(email, password);
       await refreshCart();
-      router.push("/account");
+      if (role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/account");
+      }
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -46,7 +50,7 @@ export default function LoginPage() {
           <input required type="password" placeholder="Password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
           {error && <p className="text-sm text-danger">{error}</p>}
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in\u2026" : "Sign in"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">

@@ -256,10 +256,44 @@ export interface AdminAnalytics {
     orders: number;
     customers: number;
     products: number;
+    pendingOrders: number;
+    lowStock: number;
   };
-  revenueSeries: { date: string; revenue: number }[];
-  lowStock: Product[];
-  recentOrders: Order[];
+  orderStatusCounts: Record<string, number>;
+  revenueSeries7d: { date: string; revenue: number }[];
+  revenueSeries30d: { date: string; revenue: number }[];
+  revenueSeries12m: { date: string; revenue: number }[];
+  ordersSeries7d: { date: string; orders: number }[];
+  ordersSeries30d: { date: string; orders: number }[];
+  ordersSeries12m: { date: string; orders: number }[];
+  bestSellingCategories: {
+    name: string;
+    orderCount: number;
+    revenue: number;
+  }[];
+  paymentMethodBreakdown: {
+    method: string;
+    count: number;
+    revenue: number;
+  }[];
+  recentOrders: (Order & { customerName: string; customerEmail: string })[];
+  recentCustomers: (User & { orderCount: number; totalSpent: number })[];
+  lowStockProducts: Product[];
+  outOfStockProducts: Product[];
+  recentlyAddedProducts: Product[];
+  heroBanners: HeroBanner[];
+  storePerformance: {
+    conversionRate: number;
+    averageOrderValue: number;
+    totalVisitors: number;
+    returningCustomers: number;
+  };
+  activityFeed: {
+    type: string;
+    message: string;
+    amount: number;
+    timestamp: string | null;
+  }[];
 }
 
 export interface HeroBanner {

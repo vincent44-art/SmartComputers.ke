@@ -21,6 +21,7 @@ from ..models import (
     Coupon,
     HeroBanner,
     Order,
+    OrderItem,
     Product,
     ProductImage,
     User,
@@ -86,6 +87,7 @@ def serve_uploaded_image(filename: str):
 @admin_bp.get("/analytics")
 @admin_required
 def analytics():
+    # ── Totals ──
     total_revenue = float(
         db.session.query(func.coalesce(func.sum(Order.total), 0))
         .filter(Order.payment_status == "paid")
@@ -96,28 +98,307 @@ def analytics():
         db.session.query(func.count(User.id)).filter(User.role == "customer").scalar()
     )
     product_count = db.session.query(func.count(Product.id)).scalar()
-    low_stock = (
-        Product.query.filter(Product.stock <= 5)
-        .order_by(Product.stock.asc())
+    pending_order_count = (
+        db.session.query(func.count(Order.id))
+        .filter(Order.status == "pending")
+        .scalar()
+    )
+    low_stock_count = (
+        db.session.query(func.count(Product.id))
+        .filter(Product.stock <= 5)
+        .scalar()
+    )
+
+    # ── Order status counts ──
+    status_counts = {}
+    for status_val in ["pending", "processing", "shipped", "delivered", "cancelled", "refunded"]:
+        count = (
+            db.session.query(func.count(Order.id))
+            .filter(Order.status == status_val)
+            .scalar()
+        )
+        status_counts[status_val] = count
+
+    # ── Revenue series ──
+    today = datetime.utcnow().date()
+
+    def build_revenue_series(days: int):
+        series = []
+        for i in range(days - 1, -1, -1):
+            day = today - timedelta(days=i)
+            start = datetime.combine(day, datetime.min.time())
+            end = start + timedelta(days=1)
+            day_total = float(
+                db.session.query(func.coalesce(func.sum(Order.total), 0))
+                .filter(Order.created_at >= start, Order.created_at < end)
+                .scalar()
+            )
+            series.append({"date": day.isoformat(), "revenue": day_total})
+        return series
+
+    def build_orders_series(days: int):
+        series = []
+        for i in range(days - 1, -1, -1):
+            day = today - timedelta(days=i)
+            start = datetime.combine(day, datetime.min.time())
+            end = start + timedelta(days=1)
+            day_count = (
+                db.session.query(func.count(Order.id))
+                .filter(Order.created_at >= start, Order.created_at < end)
+                .scalar()
+            )
+            series.append({"date": day.isoformat(), "orders": day_count})
+        return series
+
+    def build_monthly_revenue_series():
+        series = []
+        for i in range(11, -1, -1):
+            month_start = today.replace(day=1) - timedelta(days=30 * i)
+            if month_start.month == 12:
+                month_end = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                month_end = month_start.replace(month=month_start.month + 1)
+            month_total = float(
+                db.session.query(func.coalesce(func.sum(Order.total), 0))
+                .filter(Order.created_at >= month_start, Order.created_at < month_end)
+                .scalar()
+            )
+            series.append({
+                "date": month_start.strftime("%Y-%m"),
+                "revenue": month_total,
+            })
+        return series
+
+    def build_monthly_orders_series():
+        series = []
+        for i in range(11, -1, -1):
+            month_start = today.replace(day=1) - timedelta(days=30 * i)
+            if month_start.month == 12:
+                month_end = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                month_end = month_start.replace(month=month_start.month + 1)
+            month_count = (
+                db.session.query(func.count(Order.id))
+                .filter(Order.created_at >= month_start, Order.created_at < month_end)
+                .scalar()
+            )
+            series.append({
+                "date": month_start.strftime("%Y-%m"),
+                "orders": month_count,
+            })
+        return series
+
+    revenue_series_7d = build_revenue_series(7)
+    revenue_series_30d = build_revenue_series(30)
+    revenue_series_12m = build_monthly_revenue_series()
+    orders_series_7d = build_orders_series(7)
+    orders_series_30d = build_orders_series(30)
+    orders_series_12m = build_monthly_orders_series()
+
+    # ── Best selling categories ──
+    best_selling_categories = (
+        db.session.query(
+            Category.name,
+            func.count(OrderItem.id).label("order_count"),
+            func.coalesce(func.sum(OrderItem.unit_price * OrderItem.quantity), 0).label("revenue"),
+        )
+        .join(Product, OrderItem.product_id == Product.id)
+        .join(Category, Product.category_id == Category.id)
+        .join(Order, OrderItem.order_id == Order.id)
+        .filter(Order.payment_status == "paid")
+        .group_by(Category.name)
+        .order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc())
         .limit(5)
         .all()
     )
 
-    # Revenue for the last 7 days.
-    today = datetime.utcnow().date()
-    revenue_series = []
-    for i in range(6, -1, -1):
-        day = today - timedelta(days=i)
-        start = datetime.combine(day, datetime.min.time())
-        end = start + timedelta(days=1)
-        day_total = float(
-            db.session.query(func.coalesce(func.sum(Order.total), 0))
-            .filter(Order.created_at >= start, Order.created_at < end)
+    # ── Payment method breakdown ──
+    payment_method_breakdown = (
+        db.session.query(
+            Order.payment_method,
+            func.count(Order.id).label("count"),
+            func.coalesce(func.sum(Order.total), 0).label("revenue"),
+        )
+        .filter(Order.payment_status == "paid", Order.payment_method.isnot(None))
+        .group_by(Order.payment_method)
+        .order_by(func.count(Order.id).desc())
+        .all()
+    )
+
+    # ── Recent orders (enriched with customer info) ──
+    recent_orders = (
+        Order.query
+        .order_by(Order.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    def enrich_order(o: Order) -> dict:
+        d = o.to_dict()
+        if o.user:
+            d["customerName"] = o.user.full_name or o.user.email
+            d["customerEmail"] = o.user.email
+        else:
+            d["customerName"] = o.email or "Guest"
+            d["customerEmail"] = o.email or ""
+        return d
+
+    # ── Recent customers ──
+    recent_customers_data = (
+        User.query
+        .filter(User.role == "customer")
+        .order_by(User.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    def enrich_customer(u: User) -> dict:
+        order_count = (
+            db.session.query(func.count(Order.id))
+            .filter(Order.user_id == u.id)
             .scalar()
         )
-        revenue_series.append({"date": day.isoformat(), "revenue": day_total})
+        total_spent = float(
+            db.session.query(func.coalesce(func.sum(Order.total), 0))
+            .filter(Order.user_id == u.id, Order.payment_status == "paid")
+            .scalar()
+        )
+        d = u.to_dict()
+        d["orderCount"] = order_count
+        d["totalSpent"] = total_spent
+        return d
 
-    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all()
+    # ── Low stock / out of stock / recently added products ──
+    low_stock_products = (
+        Product.query
+        .filter(Product.stock <= 5, Product.stock > 0)
+        .order_by(Product.stock.asc())
+        .limit(10)
+        .all()
+    )
+    out_of_stock_products = (
+        Product.query
+        .filter(Product.stock == 0)
+        .order_by(Product.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+    recently_added_products = (
+        Product.query
+        .order_by(Product.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    # ── Hero banners (for management preview) ──
+    hero_banners = (
+        HeroBanner.query
+        .order_by(HeroBanner.display_order.asc())
+        .all()
+    )
+
+    # ── Store performance ──
+    total_visitors = customer_count  # approximation
+    returning_customers = (
+        db.session.query(func.count(func.distinct(Order.user_id)))
+        .filter(Order.user_id.isnot(None))
+        .scalar()
+    )
+    avg_order_value = float(
+        db.session.query(func.coalesce(func.avg(Order.total), 0))
+        .filter(Order.payment_status == "paid")
+        .scalar()
+    )
+    conversion_rate = round(
+        (order_count / max(total_visitors, 1)) * 100, 2
+    ) if total_visitors > 0 else 0
+
+    # ── Recent activity feed ──
+    # Combine recent orders, product updates, coupon creations, customer registrations,
+    # and banner publications into a single activity feed.
+    activity_feed = []
+
+    # Recent orders
+    recent_orders_activity = (
+        Order.query
+        .order_by(Order.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    for o in recent_orders_activity:
+        customer_name = o.user.full_name if o.user else (o.email or "Guest")
+        activity_feed.append({
+            "type": "order_placed",
+            "message": f"New order #{o.order_number} placed by {customer_name}",
+            "amount": float(o.total),
+            "timestamp": o.created_at.isoformat() if o.created_at else None,
+        })
+
+    # Recent product updates
+    recent_products = (
+        Product.query
+        .order_by(Product.updated_at.desc())
+        .limit(5)
+        .all()
+    )
+    for p in recent_products:
+        activity_feed.append({
+            "type": "product_updated",
+            "message": f"Product updated: {p.name}",
+            "amount": float(p.price),
+            "timestamp": p.updated_at.isoformat() if p.updated_at else None,
+        })
+
+    # Recent coupon creations
+    recent_coupons = (
+        Coupon.query
+        .order_by(Coupon.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    for c in recent_coupons:
+        activity_feed.append({
+            "type": "coupon_created",
+            "message": f"Coupon created: {c.code}",
+            "amount": float(c.amount),
+            "timestamp": c.created_at.isoformat() if c.created_at else None,
+        })
+
+    # Recent customer registrations
+    recent_customers_activity = (
+        User.query
+        .filter(User.role == "customer")
+        .order_by(User.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    for u in recent_customers_activity:
+        activity_feed.append({
+            "type": "customer_registered",
+            "message": f"New customer registered: {u.full_name or u.email}",
+            "amount": 0,
+            "timestamp": u.created_at.isoformat() if u.created_at else None,
+        })
+
+    # Recent banner updates
+    recent_banners = (
+        HeroBanner.query
+        .order_by(HeroBanner.updated_at.desc())
+        .limit(3)
+        .all()
+    )
+    for b in recent_banners:
+        action = "published" if b.is_active else "unpublished"
+        activity_feed.append({
+            "type": "banner_published",
+            "message": f"Banner {action}: {b.title}",
+            "amount": 0,
+            "timestamp": b.updated_at.isoformat() if b.updated_at else None,
+        })
+
+    # Sort activity by timestamp descending and take top 20
+    activity_feed.sort(key=lambda x: x["timestamp"] or "", reverse=True)
+    activity_feed = activity_feed[:20]
 
     return (
         jsonify(
@@ -127,10 +408,45 @@ def analytics():
                     "orders": order_count,
                     "customers": customer_count,
                     "products": product_count,
+                    "pendingOrders": pending_order_count,
+                    "lowStock": low_stock_count,
                 },
-                "revenueSeries": revenue_series,
-                "lowStock": [p.to_dict() for p in low_stock],
-                "recentOrders": [o.to_dict() for o in recent_orders],
+                "orderStatusCounts": status_counts,
+                "revenueSeries7d": revenue_series_7d,
+                "revenueSeries30d": revenue_series_30d,
+                "revenueSeries12m": revenue_series_12m,
+                "ordersSeries7d": orders_series_7d,
+                "ordersSeries30d": orders_series_30d,
+                "ordersSeries12m": orders_series_12m,
+                "bestSellingCategories": [
+                    {
+                        "name": c.name,
+                        "orderCount": c.order_count,
+                        "revenue": float(c.revenue),
+                    }
+                    for c in best_selling_categories
+                ],
+                "paymentMethodBreakdown": [
+                    {
+                        "method": p.payment_method,
+                        "count": p.count,
+                        "revenue": float(p.revenue),
+                    }
+                    for p in payment_method_breakdown
+                ],
+                "recentOrders": [enrich_order(o) for o in recent_orders],
+                "recentCustomers": [enrich_customer(u) for u in recent_customers_data],
+                "lowStockProducts": [p.to_dict() for p in low_stock_products],
+                "outOfStockProducts": [p.to_dict() for p in out_of_stock_products],
+                "recentlyAddedProducts": [p.to_dict() for p in recently_added_products],
+                "heroBanners": [b.to_dict() for b in hero_banners],
+                "storePerformance": {
+                    "conversionRate": conversion_rate,
+                    "averageOrderValue": avg_order_value,
+                    "totalVisitors": total_visitors,
+                    "returningCustomers": returning_customers,
+                },
+                "activityFeed": activity_feed,
             }
         ),
         200,
@@ -327,6 +643,13 @@ def admin_delete_product(product_id: int):
 # --------------------------------------------------------------------------- #
 # Categories & brands
 # --------------------------------------------------------------------------- #
+@admin_bp.get("/categories")
+@admin_required
+def admin_list_categories():
+    categories = Category.query.order_by(Category.name).all()
+    return jsonify([c.to_dict() for c in categories]), 200
+
+
 @admin_bp.post("/categories")
 @admin_required
 def admin_create_category():
@@ -343,6 +666,37 @@ def admin_create_category():
     db.session.add(category)
     db.session.commit()
     return jsonify(category.to_dict()), 201
+
+
+@admin_bp.patch("/categories/<int:category_id>")
+@admin_required
+def admin_update_category(category_id: int):
+    category = Category.query.get(category_id)
+    if not category:
+        raise NotFoundError("Category not found")
+    data = request.get_json(silent=True) or {}
+    if "name" in data:
+        category.name = data["name"]
+        category.slug = slugify(data["name"])
+    if "icon" in data:
+        category.icon = data["icon"]
+    if "description" in data:
+        category.description = data["description"]
+    if "isFeatured" in data:
+        category.is_featured = bool(data["isFeatured"])
+    db.session.commit()
+    return jsonify(category.to_dict()), 200
+
+
+@admin_bp.delete("/categories/<int:category_id>")
+@admin_required
+def admin_delete_category(category_id: int):
+    category = Category.query.get(category_id)
+    if not category:
+        raise NotFoundError("Category not found")
+    db.session.delete(category)
+    db.session.commit()
+    return jsonify({"message": "Category deleted"}), 200
 
 
 @admin_bp.post("/brands")

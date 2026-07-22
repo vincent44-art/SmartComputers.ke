@@ -11,7 +11,7 @@ import type { User } from "@/lib/types";
 interface AuthState {
   user: User | null;
   hydrated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ role: string }>;
   register: (payload: {
     email: string;
     password: string;
@@ -28,11 +28,12 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       hydrated: false,
-      login: async (email, password) => {
-        const res = await loginRequest(email, password);
-        setStoredToken(res.accessToken);
-        set({ user: res.user });
-      },
+login: async (email, password) => {
+    const res = await loginRequest(email, password);
+    setStoredToken(res.accessToken);
+    set({ user: res.user });
+    return { role: res.user.role };
+  },
       register: async (payload) => {
         const res = await registerRequest(payload);
         setStoredToken(res.accessToken);
