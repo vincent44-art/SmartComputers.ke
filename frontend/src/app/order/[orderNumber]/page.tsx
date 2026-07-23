@@ -79,7 +79,7 @@ export default function OrderConfirmationPage({
             )}
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">Shipping</dt>
-              <dd>{order.shipping === 0 ? "Free" : formatCurrency(order.shipping)}</dd>
+              <dd>{order.deliveryFee === 0 ? "Free" : formatCurrency(order.deliveryFee)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500 dark:text-slate-400">VAT</dt>

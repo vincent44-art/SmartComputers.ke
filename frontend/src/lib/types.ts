@@ -157,20 +157,29 @@ export interface AuthResponse {
 export interface Order {
   id: number;
   orderNumber: string;
+  customerName?: string;
   status: string;
   paymentMethod: string | null;
   paymentStatus: string;
   subtotal: number;
+  deliveryFee: number;
   discount: number;
-  shipping: number;
   tax: number;
   total: number;
   currency: string;
+  locked: boolean;
   createdAt: string | null;
+  approvedAt?: string | null;
   itemCount: number;
   items?: OrderItem[];
   email?: string;
+  phone?: string;
+  notes?: string;
+  internalNotes?: string;
   shippingAddress?: Record<string, string>;
+  billingAddress?: Record<string, string>;
+  couponCode?: string | null;
+  isOutsideNairobi?: boolean;
 }
 
 export interface OrderItem {
@@ -182,6 +191,25 @@ export interface OrderItem {
   quantity: number;
   thumbnail: string | null;
   lineTotal: number;
+  currentStock?: number;
+  inStock?: boolean;
+  stockSufficient?: boolean;
+}
+
+export interface OrderReviewPayload {
+  deliveryFee?: number;
+  discount?: number;
+  tax?: number;
+  internalNotes?: string;
+}
+
+export interface CheckoutPayload {
+  email: string;
+  phone: string;
+  customerName: string;
+  items: { productId: number; quantity: number }[];
+  shippingAddress: Record<string, string>;
+  notes?: string;
 }
 
 export interface Coupon {

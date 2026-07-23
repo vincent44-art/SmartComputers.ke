@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   FiBarChart2,
   FiBox,
@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/format";
 import { api } from "@/lib/api";
+import { fetchAdminPendingOrderCount } from "@/lib/services";
 import { useAuthStore } from "@/store/useAuthStore";
 
 const NAV = [
@@ -53,7 +54,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Fetch pending order count
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const { count } = await fetchAdminPendingOrderCount();
+      setPendingCount(count);
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingCount();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchPendingCount]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -138,9 +157,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <item.icon className={cn("h-4 w-4 transition", active ? "text-white" : "text-slate-400 group-hover:text-secondary dark:group-hover:text-slate-200")} />
               {item.label}
-              {item.href === "/admin/orders" && (
+              {item.href === "/admin/orders" && pendingCount > 0 && (
                 <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger/20 px-1.5 text-[10px] font-bold text-danger">
-                  3
+                  {pendingCount}
                 </span>
               )}
             </Link>
@@ -228,15 +247,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Right actions */}
             <div className="flex items-center gap-3">
-              {/* Notification bell */}
+              {/* Notification bell with real pending count */}
               <button
                 type="button"
                 className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-secondary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
               >
                 <FiBell className="h-4 w-4" />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[8px] font-bold text-white">
-                  3
-                </span>
+                {pendingCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[8px] font-bold text-white">
+                    {pendingCount > 9 ? "9+" : pendingCount}
+                  </span>
+                )}
               </button>
 
               {/* Admin profile dropdown */}

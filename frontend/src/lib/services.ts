@@ -207,12 +207,10 @@ export async function fetchMe(): Promise<User> {
 
 export interface CheckoutPayload {
   email: string;
-  phone?: string;
-  paymentMethod: string;
-  couponCode?: string;
+  phone: string;
+  customerName: string;
   items: { productId: number; quantity: number }[];
   shippingAddress: Record<string, string>;
-  billingAddress?: Record<string, string>;
   notes?: string;
 }
 
@@ -407,11 +405,48 @@ export async function fetchAdminOrders(
   return data;
 }
 
+export async function fetchAdminOrder(
+  id: number
+): Promise<Order> {
+  const { data } = await api.get<Order>(`/api/admin/orders/${id}`);
+  return data;
+}
+
 export async function updateAdminOrder(
   id: number,
-  payload: { status?: string; paymentStatus?: string }
+  payload: { status?: string; paymentStatus?: string; internalNotes?: string }
 ): Promise<Order> {
   const { data } = await api.patch<Order>(`/api/admin/orders/${id}`, payload);
+  return data;
+}
+
+export async function reviewAdminOrder(
+  id: number,
+  payload: import("./types").OrderReviewPayload
+): Promise<Order> {
+  const { data } = await api.post<Order>(`/api/admin/orders/${id}/review`, payload);
+  return data;
+}
+
+export async function approveAdminOrder(id: number): Promise<Order> {
+  const { data } = await api.post<Order>(`/api/admin/orders/${id}/approve`);
+  return data;
+}
+
+export async function rejectAdminOrder(id: number, reason?: string): Promise<Order> {
+  const { data } = await api.post<Order>(`/api/admin/orders/${id}/reject`, { reason });
+  return data;
+}
+
+export async function fetchAdminPendingOrderCount(): Promise<{ count: number }> {
+  const { data } = await api.get<{ count: number }>("/api/admin/orders/pending-count");
+  return data;
+}
+
+export async function resendOrderEmail(id: number): Promise<{ success: boolean; status: string }> {
+  const { data } = await api.post<{ success: boolean; status: string }>(
+    `/api/admin/orders/${id}/resend-email`
+  );
   return data;
 }
 
